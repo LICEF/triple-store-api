@@ -1,4 +1,11 @@
+.classpath
+.project
+.directory
+.idea
+*.iml
 *.class
+*.bak
+*/target
 
 # Package Files #
 *.jar

@@ -1,6 +1,9 @@
-package licef.tsapi;
+package licef.tsapi.model;
 
+import com.hp.hpl.jena.ontology.ObjectProperty;
+import com.hp.hpl.jena.rdf.model.Property;
 import licef.LangUtil;
+import licef.tsapi.util.Util;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -11,12 +14,24 @@ public class Triple {
     public Triple() {
     }
 
-//    public Triple( String subject, String predicate, String object ) {
-//        this(subject, predicate, object, Constants.LITERAL_PREDICATES.contains(predicate), null);
-//    }
+    public Triple( String subject, String predicate, String object ) {
+        this(subject, predicate, object, Util.isLiteralProperty(predicate), null);
+    }
+
+    public Triple( String subject, String predicate, String object, String language ) {
+        this(subject, predicate, object, Util.isLiteralProperty(predicate), language);
+    }
 
     public Triple( String subject, String predicate, String object, boolean isLiteral ) {
         this(subject, predicate, object, isLiteral, null);
+    }
+
+    public Triple( String subject, Property predicate, String object ) {
+        this(subject, predicate.getURI(), object, !(predicate instanceof ObjectProperty), null);
+    }
+
+    public Triple( String subject, Property predicate, String object, String language ) {
+        this(subject, predicate.getURI(), object, true, language);
     }
 
     public Triple( String subject, String predicate, String object, boolean isLiteral, String language ) {
@@ -24,6 +39,8 @@ public class Triple {
         this.predicate = predicate;
         this.object = object;
         this.isLiteral = isLiteral;
+        if ("".equals(language))
+            language = null;
         this.language = LangUtil.convertLangToISO2( language );
     }
 

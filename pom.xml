@@ -4,7 +4,7 @@
     <artifactId>licef-tsapi</artifactId>
     <packaging>jar</packaging>
     <name>Licef triple store API</name>
-    <version>0.1</version>
+    <version>0.1.0</version>
 
     <build>
         <resources>
@@ -102,5 +102,18 @@
             <version>20090211</version>
         </dependency>
     </dependencies>
+
+    <distributionManagement>
+        <repository>
+            <id>licef</id>
+            <name>licef-releases</name>
+            <url>http://hades.licef.ca:8080/artifactory/libs-release-local</url>
+        </repository>
+        <snapshotRepository>
+            <id>licef</id>
+            <name>licef-snapshots</name>
+            <url>http://hades.licef.ca:8080/artifactory/libs-snapshot-local</url>
+        </snapshotRepository>
+    </distributionManagement>
 
 </project>

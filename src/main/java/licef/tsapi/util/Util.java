@@ -4,9 +4,8 @@ import com.hp.hpl.jena.ontology.ObjectProperty;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.ResourceFactory;
-import com.hp.hpl.jena.sparql.vocabulary.FOAF;
-import com.hp.hpl.jena.vocabulary.RDFS;
-import licef.tsapi.vocabulary.SKOS;
+import licef.StringUtil;
+import licef.tsapi.vocabulary.*;
 
 import java.lang.reflect.Method;
 import java.util.Hashtable;
@@ -26,14 +25,20 @@ public class Util {
 
     static void initVocabularies() {
         vocabularies.put(RDFS.getURI(), RDFS.class);
-        vocabularies.put(FOAF.getURI(), FOAF.class);
+        vocabularies.put(DCTERMS.getURI(), DCTERMS.class);
         vocabularies.put(SKOS.getURI(), SKOS.class);
+        vocabularies.put(VCARD.getURI(), VCARD.class);
+        vocabularies.put(FOAF.getURI(), FOAF.class);
+    }
+
+    public static Class getVocabulary(String uri) {
+        Resource res = ResourceFactory.createResource(uri);
+        String ns = res.getNameSpace();
+        return vocabularies.get(ns);
     }
 
     public static Property getProperty(String uri) {
-        Resource res = ResourceFactory.createResource(uri);
-        String ns = res.getNameSpace();
-        Class vocClass = vocabularies.get(ns);
+        Class vocClass = getVocabulary(uri);
         try {
             Method m = vocClass.getMethod("getProperty", String.class);
             return (Property)m.invoke(null, uri);
@@ -45,5 +50,12 @@ public class Util {
     public static Boolean isLiteralProperty(String uri) {
         Property p = getProperty(uri);
         return p != null && !(p instanceof ObjectProperty);
+    }
+
+    public static String getIndexFieldProperty(Property property) {
+        Class vocClass = getVocabulary(property.getURI());
+        String[] nameSplitted = StringUtil.split(vocClass.getName(), '.');
+        String className = nameSplitted[nameSplitted.length - 1].toLowerCase();
+        return className + "-" + property.getLocalName();
     }
 }

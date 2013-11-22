@@ -3,6 +3,7 @@ package licef.tsapi;
 import com.hp.hpl.jena.graph.Node_Literal;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.sparql.vocabulary.FOAF;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.update.*;
 import licef.IOUtil;
@@ -10,6 +11,12 @@ import licef.tsapi.model.Literal;
 import licef.tsapi.model.*;
 import licef.tsapi.model.Resource;
 import licef.tsapi.util.Util;
+import licef.tsapi.vocabulary.RDFS;
+import org.apache.jena.query.text.EntityDefinition;
+import org.apache.jena.query.text.TextDatasetFactory;
+import org.apache.jena.query.text.TextIndex;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -63,6 +70,10 @@ public class TripleStore {
         return element;
     }
 
+    /**********************/
+    /* Dataset operations */
+    /**********************/
+
     public String[] getNamedGraphs() throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         dataset.begin(ReadWrite.READ) ;
@@ -78,10 +89,39 @@ public class TripleStore {
     }
 
 
+    /* Association with Lucene indexing */
+
+    private Dataset createIndexDataset(String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        EntityDefinition entDef = new EntityDefinition("uri", "text");
+        for (Property p : predicatesToIndex)
+            entDef.set(Util.getIndexFieldProperty(p), p.asNode());
+        String extra = "";
+        if (langInfo != null) {
+            if (langInfo instanceof String)
+                extra += "-" + langInfo;
+            else
+                extra += "-ml";
+        }
+        String graph = (graphName != null)?"/graphs/"+graphName:"/default";
+        String path = this.databaseDir + "/lucene" + graph + extra;
+        IOUtil.createDirectory(path);
+        File dir = new File(path);
+        TextIndex index;
+        if (langInfo != null) {
+            if (langInfo instanceof String)
+                index = TextDatasetFactory.createLuceneIndexLocalized(FSDirectory.open(dir), entDef, langInfo.toString()) ;
+            else
+                index = TextDatasetFactory.createLuceneIndexMultiLingual(dir, entDef, (String[])langInfo) ;
+        }
+        else
+            index = TextDatasetFactory.createLuceneIndex(FSDirectory.open(dir), entDef) ;
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        return TextDatasetFactory.create(dataset, index);
+    }
+
     /********************/
     /* Querying triples */
     /********************/
-
 
     public Triple[] getAllTriples() throws Exception {
         return getAllTriples(null);
@@ -136,9 +176,9 @@ public class TripleStore {
     }
 
 
-    /******************/
-    /* Adding triples */
-    /******************/
+    /***************/
+    /* RDF loading */
+    /***************/
 
     public void loadRdf(String file) throws Exception {
         loadRdf(file, null);
@@ -154,6 +194,67 @@ public class TripleStore {
 
     public void loadRdf(InputStream is, String graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        loadRdf(dataset, is, graphName);
+    }
+
+    /* with Lucene indexing */
+
+    //Standard index
+    public void loadRdfWithTextIndexing(String file, Property[] predicatesToIndex) throws Exception {
+        loadRdfWithTextIndexing(file, null, predicatesToIndex);
+    }
+
+    public void loadRdfWithTextIndexing(String file, String graphName, Property[] predicatesToIndex) throws Exception {
+        loadRdfWithTextIndexing(new FileInputStream(file), graphName, predicatesToIndex);
+    }
+
+    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex) throws Exception {
+        loadRdfWithTextIndexing(is, null, predicatesToIndex);
+    }
+
+    public void loadRdfWithTextIndexing(InputStream is, String graphName, Property[] predicatesToIndex) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, null);
+        loadRdf(dataset, is, graphName);
+    }
+
+    //Localized index
+    public void loadRdfWithLocalizedTextIndexing(String file, Property[] predicatesToIndex, String lang) throws Exception {
+        loadRdfWithLocalizedTextIndexing(file, null, predicatesToIndex, lang);
+    }
+
+    public void loadRdfWithLocalizedTextIndexing(String file, String graphName, Property[] predicatesToIndex, String lang) throws Exception {
+        loadRdfWithLocalizedTextIndexing(new FileInputStream(file), graphName, predicatesToIndex, lang);
+    }
+
+    public void loadRdfWithLocalizedTextIndexing(InputStream is, Property[] predicatesToIndex, String lang) throws Exception {
+        loadRdfWithLocalizedTextIndexing(is, null, predicatesToIndex, lang);
+    }
+
+    public void loadRdfWithLocalizedTextIndexing(InputStream is, String graphName, Property[] predicatesToIndex, String lang) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, lang);
+        loadRdf(dataset, is, graphName);
+    }
+
+    //Multi-lingual index
+    public void loadRdfWithMultiLingualIndexing(String file, Property[] predicatesToIndex, String[] languages) throws Exception {
+        loadRdfWithMultiLingualIndexing(file, null, predicatesToIndex, languages);
+    }
+
+    public void loadRdfWithMultiLingualIndexing(String file, String graphName, Property[] predicatesToIndex, String[] languages) throws Exception {
+        loadRdfWithMultiLingualIndexing(new FileInputStream(file), graphName, predicatesToIndex, languages);
+    }
+
+    public void loadRdfWithMultiLingualIndexing(InputStream is, Property[] predicatesToIndex, String[] languages) throws Exception {
+        loadRdfWithMultiLingualIndexing(is, null, predicatesToIndex, languages);
+    }
+
+    public void loadRdfWithMultiLingualIndexing(InputStream is, String graphName, Property[] predicatesToIndex, String[] languages) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, languages);
+        loadRdf(dataset, is, graphName);
+    }
+
+    // Effective load
+    public void loadRdf(Dataset dataset, InputStream is, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model modelTmp = ModelFactory.createDefaultModel();
@@ -167,8 +268,12 @@ public class TripleStore {
         finally {
             dataset.end();
         }
-
     }
+
+
+    /******************/
+    /* Adding triples */
+    /******************/
 
     public void insertTriples(List<Triple> triples) throws Exception {
         insertTriples(triples, null);
@@ -176,6 +281,43 @@ public class TripleStore {
 
     public void insertTriples(List<Triple> triples, String graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        insertTriples(dataset, triples, graphName);
+    }
+
+    /* with Lucene indexing */
+
+    //Standard index
+    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex) throws Exception {
+        insertTriplesWithTextIndexing(triples, null, predicatesToIndex);
+    }
+
+    public void insertTriplesWithTextIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, null);
+        insertTriples(dataset, triples, graphName);
+    }
+
+    //Localized index
+    public void insertTriplesWithLocalizedTextIndexing(List<Triple> triples, Property[] predicatesToIndex, String lang) throws Exception {
+        insertTriplesWithLocalizedTextIndexing(triples, null, predicatesToIndex, lang);
+    }
+
+    public void insertTriplesWithLocalizedTextIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex, String lang) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, lang);
+        insertTriples(dataset, triples, graphName);
+    }
+
+    //Multi-lingual index
+    public void insertTriplesWithMultiLingualIndexing(List<Triple> triples, Property[] predicatesToIndex, String[] languages) throws Exception {
+        insertTriplesWithMultiLingualIndexing(triples, null, predicatesToIndex, languages);
+    }
+
+    public void insertTriplesWithMultiLingualIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex, String[] languages) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, languages);
+        insertTriples(dataset, triples, graphName);
+    }
+
+    // Effective insert
+    public void insertTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model model = (graphName == null)?

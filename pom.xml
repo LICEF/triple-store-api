@@ -88,13 +88,19 @@
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
-            <artifactId>jena-text</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.jena</groupId>
             <artifactId>jena-fuseki</artifactId>
             <version>1.0.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.jena</groupId>
+                    <artifactId>jena-text</artifactId>
+                </exclusion>
+            </exclusions> 
+        </dependency>
+        <dependency>
+            <groupId>licef</groupId>
+            <artifactId>jena-text-extended</artifactId>
+            <version>1.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>

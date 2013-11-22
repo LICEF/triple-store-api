@@ -1,6 +1,8 @@
 import licef.tsapi.model.Triple;
 import licef.tsapi.TripleStore;
 import licef.tsapi.model.Tuple;
+import licef.tsapi.util.Util;
+import licef.tsapi.vocabulary.FOAF;
 
 import javax.swing.*;
 import java.awt.*;
@@ -19,13 +21,16 @@ public class Test {
         String dbPath = "e:/zzz/tsapiTest/data";
         String serverPath = "e:/zzz/tsapiTest";
         TripleStore ts = new TripleStore(dbPath, serverPath, null);
-        ts.startServer();
+
+        String b = Util.getIndexFieldProperty(FOAF.firstName);
+        System.out.println("b = " + b);
+        /*ts.startServer();
         try {
             ts.loadRdf("e:/zzz/C.rdf");
         } catch (Exception e) {
             e.printStackTrace();
         }
-
+*/
 //
 //        launchControlPanel(ts);
 

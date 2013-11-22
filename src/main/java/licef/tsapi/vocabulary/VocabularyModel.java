@@ -8,13 +8,13 @@ import com.hp.hpl.jena.rdf.model.Property;
  * User: amiara
  * Date: 13-11-19
  */
-public abstract class
-
-        VocabularyModel {
+public abstract class VocabularyModel {
 
     static OntModel m_model;
 
     public static Property getProperty(String prop) {
         return m_model.getProperty(prop);
     }
+
+    //public abstract String getVocabularyName();
 }

@@ -14,31 +14,23 @@ public class Triple {
     public Triple() {
     }
 
-    public Triple( String subject, String predicate, String object ) {
-        this(subject, predicate, object, Util.isLiteralProperty(predicate), null);
+    public Triple(String subject, String predicate, String object, boolean isObjectLiteral) {
+        this(subject, predicate, object, isObjectLiteral, null);
     }
 
-    public Triple( String subject, String predicate, String object, String language ) {
-        this(subject, predicate, object, Util.isLiteralProperty(predicate), language);
-    }
-
-    public Triple( String subject, String predicate, String object, boolean isLiteral ) {
-        this(subject, predicate, object, isLiteral, null);
-    }
-
-    public Triple( String subject, Property predicate, String object ) {
+    public Triple(String subject, Property predicate, String object) {
         this(subject, predicate.getURI(), object, !(predicate instanceof ObjectProperty), null);
     }
 
-    public Triple( String subject, Property predicate, String object, String language ) {
-        this(subject, predicate.getURI(), object, true, language);
+    public Triple(String subject, Property predicate, String object, String language) {
+        this(subject, predicate.getURI(), object, !(predicate instanceof ObjectProperty), language);
     }
 
-    public Triple( String subject, String predicate, String object, boolean isLiteral, String language ) {
+    public Triple(String subject, String predicate, String object, boolean isObjectLiteral, String language) {
         this.subject = subject;
         this.predicate = predicate;
         this.object = object;
-        this.isLiteral = isLiteral;
+        this.isObjectLiteral = isObjectLiteral;
         if ("".equals(language))
             language = null;
         this.language = LangUtil.convertLangToISO2( language );
@@ -72,12 +64,12 @@ public class Triple {
         return( object == null || "".equals( object.trim() ) );
     }
 
-    public boolean isLiteral() {
-        return isLiteral;
+    public boolean isObjectLiteral() {
+        return isObjectLiteral;
     }
 
     public void setLiteral(boolean literal) {
-        isLiteral = literal;
+        isObjectLiteral = literal;
     }
 
     public String getLanguage() {
@@ -92,7 +84,7 @@ public class Triple {
         StringBuilder str = new StringBuilder();
         str.append("<").append(subject).append("> ");
         str.append("<").append(predicate).append("> ");
-        if (isLiteral()) {
+        if (isObjectLiteral()) {
             str.append("\"").append(object).append("\"");
             if (getLanguage() != null)
                 str.append( "@" ).append(getLanguage());
@@ -108,7 +100,7 @@ public class Triple {
         if( !( obj instanceof Triple ) )
             return( false );
         Triple triple = (Triple)obj;
-        if( ( isLiteral() && !triple.isLiteral() ) || ( !isLiteral() && triple.isLiteral() ) )
+        if( ( isObjectLiteral() && !triple.isObjectLiteral() ) || ( !isObjectLiteral() && triple.isObjectLiteral() ) )
             return( false );
         if( getSubject() == null && triple.getSubject() != null )
             return( false );
@@ -128,7 +120,7 @@ public class Triple {
     }
 
     public int hashCode() {
-        return( ( subject + predicate + object + isLiteral + language ).hashCode() );
+        return( ( subject + predicate + object + isObjectLiteral + language ).hashCode() );
     }
 
     public static Triple[] readTriplesFromXml( String xml ) throws JSONException {
@@ -182,7 +174,7 @@ public class Triple {
             jsonTriple.put( "subject", triples[ i ].getSubject() );
             jsonTriple.put( "predicate", triples[ i ].getPredicate() );
             jsonTriple.put( "object", triples[ i ].getObject() );
-            jsonTriple.put( "literal", triples[ i ].isLiteral() ? "true" : "false" );
+            jsonTriple.put( "literal", triples[ i ].isObjectLiteral() ? "true" : "false" );
             if( triples[ i ].getLanguage() != null )
                 jsonTriple.put( "language", triples[ i ].getLanguage() );
             jsonTriples.put( jsonTriple );
@@ -194,7 +186,7 @@ public class Triple {
     private String subject;
     private String predicate;
     private String object;
-    private boolean isLiteral;
+    private boolean isObjectLiteral;
     private String language;
 
 }

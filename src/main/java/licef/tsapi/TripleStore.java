@@ -1,21 +1,19 @@
 package licef.tsapi;
 
-import com.hp.hpl.jena.graph.Node_Literal;
+import com.hp.hpl.jena.graph.*;
+import com.hp.hpl.jena.graph.impl.LiteralLabel;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
-import com.hp.hpl.jena.sparql.vocabulary.FOAF;
+import com.hp.hpl.jena.sparql.core.Quad;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.update.*;
 import licef.IOUtil;
-import licef.tsapi.model.Literal;
 import licef.tsapi.model.*;
-import licef.tsapi.model.Resource;
+import licef.tsapi.model.Triple;
 import licef.tsapi.util.Util;
-import licef.tsapi.vocabulary.RDFS;
 import org.apache.jena.query.text.EntityDefinition;
 import org.apache.jena.query.text.TextDatasetFactory;
 import org.apache.jena.query.text.TextIndex;
-import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
@@ -138,17 +136,19 @@ public class TripleStore {
             for (StmtIterator it = model.listStatements(); it.hasNext(); ) {
                 Statement stmt = it.nextStatement();
                 String subject = stmt.getSubject().getURI();
-                Property predicate = stmt.getPredicate();
+                String predicate = stmt.getPredicate().getURI();
                 RDFNode _object = stmt.getObject();
                 String object;
                 String language = null;
-                if (_object instanceof com.hp.hpl.jena.rdf.model.Literal) {
-                    language = ((com.hp.hpl.jena.rdf.model.Literal)_object).getLanguage();
-                    object = ((com.hp.hpl.jena.rdf.model.Literal)_object).getValue().toString();
+                boolean isObjectLiteral = false;
+                if (_object instanceof Literal) {
+                    language = ((Literal)_object).getLanguage();
+                    object = ((Literal)_object).getValue().toString();
+                    isObjectLiteral = true;
                 }
                 else
                     object = _object.toString();
-                triples.add(new Triple(subject, predicate.getURI(), object, language));
+                triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
             }
         }
         finally {
@@ -175,6 +175,109 @@ public class TripleStore {
         }
     }
 
+    //s
+    public Triple[] getTriplesWithSubject(String subject) throws Exception {
+        return getTriplesWithSubjectPredicateObject(subject, null, null, false, null, null);
+    }
+
+    public Triple[] getTriplesWithSubject(String subject, String graphName) throws Exception {
+        return getTriplesWithSubjectPredicateObject(subject, null, null, false, null, graphName);
+    }
+
+    //p
+    public Triple[] getTriplesWithPredicate(Property predicate) throws Exception {
+        return getTriplesWithPredicate(predicate.getURI());
+    }
+
+    public Triple[] getTriplesWithPredicate(String predicate) throws Exception {
+        return getTriplesWithPredicate(predicate, null);
+    }
+
+    public Triple[] getTriplesWithPredicate(Property predicate, String graphName) throws Exception {
+        return getTriplesWithPredicate(predicate.getURI(), graphName);
+    }
+
+    public Triple[] getTriplesWithPredicate(String predicate, String graphName) throws Exception {
+        return getTriplesWithSubjectPredicateObject(null, predicate, null, false, null, graphName);
+    }
+
+    //sp
+    public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate) throws Exception {
+        return getTriplesWithSubjectPredicate(subject, predicate.getURI());
+    }
+
+    public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate) throws Exception {
+        return getTriplesWithSubjectPredicate(subject, predicate, null);
+    }
+
+    public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate, String graphName) throws Exception {
+        return getTriplesWithSubjectPredicate(subject, predicate.getURI(), graphName);
+    }
+
+    public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate, String graphName) throws Exception {
+        return getTriplesWithSubjectPredicateObject(subject, predicate, null, false, null, graphName);
+    }
+
+    //po
+    public Triple[] getTriplesWithPredicateObject(Property predicate, String object, boolean isObjectLiteral, String language) throws Exception {
+        return getTriplesWithPredicateObject(predicate.getURI(), object, isObjectLiteral, language, null);
+    }
+
+    public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language) throws Exception {
+        return getTriplesWithPredicateObject(predicate, object, isObjectLiteral, language, null);
+    }
+
+    public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language, String graphName) throws Exception {
+        return getTriplesWithSubjectPredicateObject(null, predicate, object, isObjectLiteral, language, graphName);
+    }
+
+    //spo
+    public Triple[] getTriplesWithSubjectPredicateObject(String subject, String predicate, String object, boolean isObjectLiteral, String language, String graphName) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        dataset.begin(ReadWrite.READ);
+        ArrayList<Triple> triples = new ArrayList<Triple>();
+        try {
+            Node graph = (graphName != null)?NodeFactory.createURI(getUri(graphName)):NodeFactory.createURI("urn:x-arq:DefaultGraph");
+            Node s = (subject != null)?NodeFactory.createURI(subject):Node.ANY;
+            Node p = (predicate != null)?NodeFactory.createURI(predicate):Node.ANY;
+            Node o = Node.ANY;
+            if (object != null) {
+                if (isObjectLiteral) {
+                    if (language != null && !"".equals(language))
+                        o = NodeFactory.createLiteral(object, language, false);
+                    else
+                        o = NodeFactory.createLiteral(object);
+                }
+                else
+                    o = NodeFactory.createURI(object);
+            }
+
+            Iterator<Quad> quadIter = dataset.asDatasetGraph().find(graph, s, p, o) ;
+            for (; quadIter.hasNext(); ) {
+                Quad quad = quadIter.next();
+                String resSubject = quad.getSubject().getURI();
+                String resPred = quad.getPredicate().getURI();
+                Node _object = quad.getObject();
+                String resObj;
+                String resLanguage = null;
+                boolean resIsObjectLiteral = false;
+                if (_object.isLiteral()) {
+                    resLanguage = _object.getLiteralLanguage();
+                    resObj = _object.getLiteralValue().toString();
+                    resIsObjectLiteral = true;
+                }
+                else
+                    resObj = _object.getURI();
+                triples.add(new Triple(resSubject, resPred, resObj, resIsObjectLiteral, resLanguage));
+            }
+        }
+        finally {
+            dataset.end();
+        }
+        return triples.toArray(new Triple[triples.size()]);
+    }
+
+
 
     /***************/
     /* RDF loading */
@@ -199,57 +302,28 @@ public class TripleStore {
 
     /* with Lucene indexing */
 
-    //Standard index
-    public void loadRdfWithTextIndexing(String file, Property[] predicatesToIndex) throws Exception {
-        loadRdfWithTextIndexing(file, null, predicatesToIndex);
+    /**
+     * @param predicatesToIndex array of properties to index
+     * @param langInfo formats are :
+     *                 - null for standard indexing
+     *                 - langstring for localized indexing (ex: "fr")
+     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     */
+
+    public void loadRdfWithTextIndexing(String file, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        loadRdfWithTextIndexing(file, null, predicatesToIndex, langInfo);
     }
 
-    public void loadRdfWithTextIndexing(String file, String graphName, Property[] predicatesToIndex) throws Exception {
-        loadRdfWithTextIndexing(new FileInputStream(file), graphName, predicatesToIndex);
+    public void loadRdfWithTextIndexing(String file, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        loadRdfWithTextIndexing(new FileInputStream(file), graphName, predicatesToIndex, langInfo);
     }
 
-    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex) throws Exception {
-        loadRdfWithTextIndexing(is, null, predicatesToIndex);
+    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        loadRdfWithTextIndexing(is, null, predicatesToIndex, langInfo);
     }
 
-    public void loadRdfWithTextIndexing(InputStream is, String graphName, Property[] predicatesToIndex) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, null);
-        loadRdf(dataset, is, graphName);
-    }
-
-    //Localized index
-    public void loadRdfWithLocalizedTextIndexing(String file, Property[] predicatesToIndex, String lang) throws Exception {
-        loadRdfWithLocalizedTextIndexing(file, null, predicatesToIndex, lang);
-    }
-
-    public void loadRdfWithLocalizedTextIndexing(String file, String graphName, Property[] predicatesToIndex, String lang) throws Exception {
-        loadRdfWithLocalizedTextIndexing(new FileInputStream(file), graphName, predicatesToIndex, lang);
-    }
-
-    public void loadRdfWithLocalizedTextIndexing(InputStream is, Property[] predicatesToIndex, String lang) throws Exception {
-        loadRdfWithLocalizedTextIndexing(is, null, predicatesToIndex, lang);
-    }
-
-    public void loadRdfWithLocalizedTextIndexing(InputStream is, String graphName, Property[] predicatesToIndex, String lang) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, lang);
-        loadRdf(dataset, is, graphName);
-    }
-
-    //Multi-lingual index
-    public void loadRdfWithMultiLingualIndexing(String file, Property[] predicatesToIndex, String[] languages) throws Exception {
-        loadRdfWithMultiLingualIndexing(file, null, predicatesToIndex, languages);
-    }
-
-    public void loadRdfWithMultiLingualIndexing(String file, String graphName, Property[] predicatesToIndex, String[] languages) throws Exception {
-        loadRdfWithMultiLingualIndexing(new FileInputStream(file), graphName, predicatesToIndex, languages);
-    }
-
-    public void loadRdfWithMultiLingualIndexing(InputStream is, Property[] predicatesToIndex, String[] languages) throws Exception {
-        loadRdfWithMultiLingualIndexing(is, null, predicatesToIndex, languages);
-    }
-
-    public void loadRdfWithMultiLingualIndexing(InputStream is, String graphName, Property[] predicatesToIndex, String[] languages) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, languages);
+    public void loadRdfWithTextIndexing(InputStream is, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, langInfo);
         loadRdf(dataset, is, graphName);
     }
 
@@ -286,33 +360,19 @@ public class TripleStore {
 
     /* with Lucene indexing */
 
-    //Standard index
-    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex) throws Exception {
-        insertTriplesWithTextIndexing(triples, null, predicatesToIndex);
+    /**
+     * @param predicatesToIndex array of properties to index
+     * @param langInfo formats are :
+     *                 - null for standard indexing
+     *                 - langstring for localized indexing (ex: "fr")
+     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     */
+    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        insertTriplesWithTextIndexing(triples, null, predicatesToIndex, langInfo);
     }
 
-    public void insertTriplesWithTextIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, null);
-        insertTriples(dataset, triples, graphName);
-    }
-
-    //Localized index
-    public void insertTriplesWithLocalizedTextIndexing(List<Triple> triples, Property[] predicatesToIndex, String lang) throws Exception {
-        insertTriplesWithLocalizedTextIndexing(triples, null, predicatesToIndex, lang);
-    }
-
-    public void insertTriplesWithLocalizedTextIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex, String lang) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, lang);
-        insertTriples(dataset, triples, graphName);
-    }
-
-    //Multi-lingual index
-    public void insertTriplesWithMultiLingualIndexing(List<Triple> triples, Property[] predicatesToIndex, String[] languages) throws Exception {
-        insertTriplesWithMultiLingualIndexing(triples, null, predicatesToIndex, languages);
-    }
-
-    public void insertTriplesWithMultiLingualIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex, String[] languages) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, languages);
+    public void insertTriplesWithTextIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, langInfo);
         insertTriples(dataset, triples, graphName);
     }
 
@@ -325,8 +385,8 @@ public class TripleStore {
                     ModelFactory.createDefaultModel();
 
             for (Triple triple : triples) {
-                Property p = Util.getProperty(triple.getPredicate());
-                if (triple.isLiteral()) {
+                Property p = ResourceFactory.createProperty(triple.getPredicate());
+                if (triple.isObjectLiteral()) {
                     if (triple.getLanguage() != null)
                         model.createResource(triple.getSubject()).addProperty(p,
                                 model.createLiteral(triple.getObject(), triple.getLanguage()));
@@ -359,6 +419,30 @@ public class TripleStore {
 
     public void clear(String graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        clear(dataset, graphName);
+    }
+
+    /* with Lucene indexing */
+
+    /**
+     * @param indexedPredicates array of indexed properties
+     * @param langInfo formats are :
+     *                 - null for standard indexing
+     *                 - langstring for localized indexing (ex: "fr")
+     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     */
+
+    public void clearWithTextIndexing(Property[] indexedPredicates, Object langInfo) throws Exception {
+        clearWithTextIndexing(null, indexedPredicates, langInfo);
+    }
+
+    public void clearWithTextIndexing(String graphName, Property[] indexedPredicates, Object langInfo) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, indexedPredicates, langInfo);
+        clear(dataset, graphName);
+    }
+
+    // Effective clear
+    public void clear(Dataset dataset, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE);
         try {
             if (graphName == null)
@@ -371,6 +455,64 @@ public class TripleStore {
             dataset.end();
         }
     }
+
+    public void removeTriples(List<Triple> triples) throws Exception {
+        removeTriples(triples, null);
+    }
+
+    public void removeTriples(List<Triple> triples, String graphName) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        removeTriples(dataset, triples, graphName);
+    }
+
+    /* with Lucene indexing */
+
+    /**
+     * @param indexedPredicates array of properties to index
+     * @param langInfo formats are :
+     *                 - null for standard indexing
+     *                 - langstring for localized indexing (ex: "fr")
+     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     */
+    public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo) throws Exception {
+        removeTriplesWithTextIndexing(triples, null, indexedPredicates, langInfo);
+    }
+
+    public void removeTriplesWithTextIndexing(List<Triple> triples, String graphName, Property[] indexedPredicates, Object langInfo) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, indexedPredicates, langInfo);
+        removeTriples(dataset, triples, graphName);
+    }
+
+    // Effective remove
+    public void removeTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
+        dataset.begin(ReadWrite.WRITE) ;
+        try {
+            Model model = (graphName == null)?
+                    dataset.getDefaultModel():
+                    dataset.getNamedModel(getUri(graphName));
+
+            for (Triple triple : triples) {
+                Resource subject = ResourceFactory.createResource(triple.getSubject());
+                Property predicate = ResourceFactory.createProperty(triple.getPredicate());
+                RDFNode object;
+                if (triple.isObjectLiteral()) {
+                    if (triple.getLanguage() != null)
+                        object = ResourceFactory.createLangLiteral(triple.getObject(), triple.getLanguage());
+                    else
+                        object = ResourceFactory.createPlainLiteral(triple.getObject());
+                }
+                else
+                    object = ResourceFactory.createResource(triple.getObject());
+                model.remove(subject, predicate, object);
+            }
+
+            dataset.commit();
+        }
+        finally {
+            dataset.end();
+        }
+    }
+
 
 
     /**************************/
@@ -394,12 +536,14 @@ public class TripleStore {
                     if (varNames == null)
                         vars.add(varName);
                     RDFNode n = res.get(varName);
-                    Node node;
-                    if (n instanceof com.hp.hpl.jena.rdf.model.Literal)
-                        node = new Literal(((com.hp.hpl.jena.rdf.model.Literal)n).getValue().toString(),
-                                ((com.hp.hpl.jena.rdf.model.Literal)n).getLanguage());
+                    NodeValue node = new NodeValue();
+                    if (n instanceof Literal) {
+                        node.setLiteral(true);
+                        node.setValue((((Literal)n).getValue().toString()));
+                        node.setLanguage(((Literal)n).getLanguage());
+                    }
                     else
-                        node = new Resource(n.toString());
+                        node.setValue(n.toString());
                     tuple.setValue(varName, node);
                 }
                 if (varNames == null)
@@ -444,13 +588,15 @@ public class TripleStore {
                 com.hp.hpl.jena.graph.Node _object = triple.getObject();
                 String object;
                 String language = null;
+                boolean isObjectLiteral = false;
                 if (_object instanceof Node_Literal) {
                     language = _object.getLiteralLanguage();
                     object = _object.getLiteralValue().toString();
+                    isObjectLiteral = true;
                 }
                 else
                     object = _object.getURI();
-                triples.add(new Triple(subject, predicate, object, language));
+                triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
             }
         }
         finally {
@@ -474,13 +620,15 @@ public class TripleStore {
                 com.hp.hpl.jena.graph.Node _object = triple.getObject();
                 String object;
                 String language = null;
+                boolean isObjectLiteral = false;
                 if (_object instanceof Node_Literal) {
                     language = _object.getLiteralLanguage();
                     object = _object.getLiteralValue().toString();
+                    isObjectLiteral = true;
                 }
                 else
                     object = _object.getURI();
-                triples.add(new Triple(subject, predicate, object, language));
+                triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
             }
         }
         finally {
@@ -514,5 +662,12 @@ public class TripleStore {
         return -1;
     }
 
+    /********************/
+    /* Misc. operations */
+    /********************/
+
+    public void registerVocabulary(String vocUri, Class vocClass) {
+        Util.registerVocabulary(vocUri, vocClass);
+    }
 
 }

@@ -10,7 +10,7 @@ import com.hp.hpl.jena.rdf.model.Property;
  */
 public abstract class VocabularyModel {
 
-    static OntModel m_model;
+    protected static OntModel m_model;
 
     public static Property getProperty(String prop) {
         return m_model.getProperty(prop);

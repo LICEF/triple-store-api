@@ -10,7 +10,7 @@ import java.util.Hashtable;
 public class Tuple {
 
     public Tuple() {
-        values = new Hashtable<String, Node>();
+        values = new Hashtable<String, NodeValue>();
     }
 
     public Tuple(String[] varNames) {
@@ -26,11 +26,11 @@ public class Tuple {
         return varNames;
     }
 
-    public Node getValue(String var) {
+    public NodeValue getValue(String var) {
         return values.get(var);
     }
 
-    public void setValue(String var, Node node) {
+    public void setValue(String var, NodeValue node) {
         values.put(var, node);
     }
 
@@ -39,5 +39,5 @@ public class Tuple {
     }
 
     String[] varNames;
-    Hashtable<String, Node> values;
+    Hashtable<String, NodeValue> values;
 }

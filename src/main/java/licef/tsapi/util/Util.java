@@ -31,25 +31,16 @@ public class Util {
         vocabularies.put(FOAF.getURI(), FOAF.class);
     }
 
+    public static void registerVocabulary(String vocUri, Class vocClass) {
+        vocabularies.put(vocUri, vocClass);
+
+        System.out.println("vocabularies = " + vocabularies);
+    }
+
     public static Class getVocabulary(String uri) {
         Resource res = ResourceFactory.createResource(uri);
         String ns = res.getNameSpace();
         return vocabularies.get(ns);
-    }
-
-    public static Property getProperty(String uri) {
-        Class vocClass = getVocabulary(uri);
-        try {
-            Method m = vocClass.getMethod("getProperty", String.class);
-            return (Property)m.invoke(null, uri);
-        } catch (Exception e) {
-        }
-        return null;
-    }
-
-    public static Boolean isLiteralProperty(String uri) {
-        Property p = getProperty(uri);
-        return p != null && !(p instanceof ObjectProperty);
     }
 
     public static String getIndexFieldProperty(Property property) {
@@ -58,4 +49,5 @@ public class Util {
         String className = nameSplitted[nameSplitted.length - 1].toLowerCase();
         return className + "-" + property.getLocalName();
     }
+
 }

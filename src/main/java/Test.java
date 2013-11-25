@@ -1,14 +1,19 @@
+import com.hp.hpl.jena.rdf.model.Property;
+import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
 import licef.tsapi.TripleStore;
 import licef.tsapi.model.Tuple;
 import licef.tsapi.util.Util;
 import licef.tsapi.vocabulary.FOAF;
+import licef.tsapi.vocabulary.SKOS;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 /**
  * Created with IntelliJ IDEA.
@@ -22,8 +27,49 @@ public class Test {
         String serverPath = "e:/zzz/tsapiTest";
         TripleStore ts = new TripleStore(dbPath, serverPath, null);
 
-        String b = Util.getIndexFieldProperty(FOAF.firstName);
-        System.out.println("b = " + b);
+//        launchControlPanel(ts);
+
+         ArrayList<Triple> l = new ArrayList<Triple>();
+        Triple t1 = new Triple("http://uri/res1", SKOS.broadMatch, "http://uri/res2");
+        Triple t2 = new Triple("http://uri/res1", SKOS.prefLabel, "Hello");
+        Triple t3 = new Triple("http://uri/res1", SKOS.prefLabel, "bonjour les amis", "fr");
+        Triple t4 = new Triple("http://uri/res2", SKOS.prefLabel, "comment allez vous", "fr");
+        Triple t5 = new Triple("http://uri/res2", SKOS.broadMatch, "http://uri/res3");
+        l.add(t1);
+        l.add(t2);
+        l.add(t3);
+        l.add(t4);
+        l.add(t5);
+
+        try {
+//            ts.insertTriples(l, "testNamed");
+//            ts.removeTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"});
+//            ts.insertTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, null);
+//            ts.insertTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"});
+            Triple[] toDelete = ts.getTriplesWithSubjectPredicate("http://uri/res1", SKOS.broadMatch, "testNamed");
+            ts.removeTriples(Arrays.asList(toDelete), "testNamed");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+       /* try {
+            ts.clear();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }*/
+
+        /*try {
+//            Triple[] tt = ts.getTriplesWithPredicate(SKOS.broadMatch);
+            Triple[] tt = ts.getTriplesWithSubject("http://uri/res1", "testNamed");
+            for (Triple t : tt) {
+                System.out.println("t = " + t);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }*/
+
+
         /*ts.startServer();
         try {
             ts.loadRdf("e:/zzz/C.rdf");
@@ -32,21 +78,29 @@ public class Test {
         }
 */
 //
-//        launchControlPanel(ts);
 
-        /*ArrayList<Triple> l = new ArrayList<Triple>();
+       /* ArrayList<Triple> l = new ArrayList<Triple>();
         Triple t1 = new Triple("http://uri/res1", SKOS.broadMatch, "http://uri/res2");
         Triple t2 = new Triple("http://uri/res1", SKOS.prefLabel, "Hello");
         Triple t3 = new Triple("http://uri/res1", SKOS.altLabel, "bonjour les amis", "fr");
         l.add(t1);
         l.add(t2);
-        l.add(t3);*/
+        l.add(t3);
 
-//        ts.insertTriples(l);
-       /* Triple[] tt = ts.getAllTriples();
-        for (Triple ss : tt) {
-            System.out.println("n = " + ss);
+        try {
+            ts.insertTriples(l);
+        } catch (Exception e) {
+            e.printStackTrace();
         }*/
+
+        try {
+            Triple[] tt = ts.getAllTriples("testNamed");
+            for (Triple ss : tt) {
+                System.out.println("n = " + ss);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
 
 
@@ -67,10 +121,10 @@ public class Test {
         System.out.println("b = " + b);*/
 
         //DESCRIBE
-        String q = "DESCRIBE <http://uri/res1> ";
-//                    "WHERE { " +
-//                    "    ?a  <http://www.w3.org/2004/02/skos/core#broadMatch> ?b " +
-//                    "}";
+       /* String q = "DESCRIBE ?b " +
+                    "WHERE { " +
+                    "    ?a  <http://www.w3.org/2004/02/skos/core#broadMatch> ?b " +
+                    "}";
         try {
             Triple[] res = ts.sparqlDescribe(q);
             for (Triple ss : res) {
@@ -78,7 +132,7 @@ public class Test {
             }
         } catch (Exception e) {
             e.printStackTrace();
-        }
+        }*/
 
         /*//CONSTRUCT
         String q = "CONSTRUCT {" +
@@ -94,19 +148,29 @@ public class Test {
 
 
 
-      /*//UPDATE
-        q = "INSERT DATA { " +
+      //UPDATE
+        /*String q = "INSERT DATA { " +
                 "    <http://uri/res2>  <http://www.w3.org/2004/02/skos/core#broadMatch> <http://uri/res3> . " +
                 "    <http://uri/res4>  <http://www.w3.org/2004/02/skos/core#broadMatch> <http://uri/res5> . " +
                 "}";
-        ts.sparqlUpdate(q);*/
+        try {
+            ts.sparqlUpdate(q);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }*/
 
 
-        /* q = "DELETE DATA { " +
+        /*String q = "DELETE DATA { " +
                 "    <http://uri/res2>  <http://www.w3.org/2004/02/skos/core#broadMatch> <http://uri/res3> . " +
                 "    <http://uri/res4>  <http://www.w3.org/2004/02/skos/core#broadMatch> <http://uri/res5> . " +
                 "}";
-        ts.sparqlUpdate(q);*/
+        try {
+            ts.sparqlUpdate(q);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }*/
+
+
     }
 
     public static void launchControlPanel(final TripleStore ts) {
@@ -143,7 +207,14 @@ public class Test {
     }
 
     public static void query(TripleStore ts) {
-//        ts.listTriples();
+        try {
+            Triple[] triples = ts.getAllTriples();
+            for (Triple triple : triples) {
+                System.out.println(triple.toString());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public static void insert(TripleStore ts) {
@@ -164,6 +235,7 @@ public class Test {
     public static void clear(TripleStore ts) {
         try {
             ts.clear();
+            System.out.println("default graph cleared.");
         } catch (Exception e) {
             e.printStackTrace();
         }

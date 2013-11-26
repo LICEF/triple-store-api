@@ -33,8 +33,6 @@ public class Util {
 
     public static void registerVocabulary(String vocUri, Class vocClass) {
         vocabularies.put(vocUri, vocClass);
-
-        System.out.println("vocabularies = " + vocabularies);
     }
 
     public static Class getVocabulary(String uri) {

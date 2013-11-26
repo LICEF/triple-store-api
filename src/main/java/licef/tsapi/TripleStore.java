@@ -4,6 +4,8 @@ import com.hp.hpl.jena.graph.*;
 import com.hp.hpl.jena.graph.impl.LiteralLabel;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
+import com.hp.hpl.jena.reasoner.Reasoner;
+import com.hp.hpl.jena.reasoner.ReasonerRegistry;
 import com.hp.hpl.jena.sparql.core.Quad;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.update.*;
@@ -327,8 +329,8 @@ public class TripleStore {
         loadRdf(dataset, is, graphName);
     }
 
-    // Effective load
-    public void loadRdf(Dataset dataset, InputStream is, String graphName) throws Exception {
+    //Effective load
+    private void loadRdf(Dataset dataset, InputStream is, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model modelTmp = ModelFactory.createDefaultModel();
@@ -349,6 +351,16 @@ public class TripleStore {
     /* Adding triples */
     /******************/
 
+    public void insertTriple(Triple triple) throws Exception {
+        insertTriple(triple, null);
+    }
+
+    public void insertTriple(Triple triple, String graphName) throws Exception {
+        ArrayList<Triple> triples = new ArrayList<Triple>();
+        triples.add(triple);
+        insertTriples(triples, graphName);
+    }
+
     public void insertTriples(List<Triple> triples) throws Exception {
         insertTriples(triples, null);
     }
@@ -367,6 +379,16 @@ public class TripleStore {
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
+    public void insertTripleWithTextIndexing(Triple triple, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        insertTripleWithTextIndexing(triple, null, predicatesToIndex, langInfo);
+    }
+
+    public void insertTripleWithTextIndexing(Triple triple, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        ArrayList<Triple> triples = new ArrayList<Triple>();
+        triples.add(triple);
+        insertTriplesWithTextIndexing(triples, graphName, predicatesToIndex, langInfo);
+    }
+
     public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo) throws Exception {
         insertTriplesWithTextIndexing(triples, null, predicatesToIndex, langInfo);
     }
@@ -377,7 +399,7 @@ public class TripleStore {
     }
 
     // Effective insert
-    public void insertTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
+    private void insertTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model model = (graphName == null)?
@@ -442,7 +464,7 @@ public class TripleStore {
     }
 
     // Effective clear
-    public void clear(Dataset dataset, String graphName) throws Exception {
+    private void clear(Dataset dataset, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE);
         try {
             if (graphName == null)
@@ -454,6 +476,16 @@ public class TripleStore {
         finally {
             dataset.end();
         }
+    }
+
+    public void removeTriple(Triple triple) throws Exception {
+        removeTriple(triple, null);
+    }
+
+    public void removeTriple(Triple triple, String graphName) throws Exception {
+        ArrayList<Triple> triples = new ArrayList<Triple>();
+        triples.add(triple);
+        removeTriples(triples, graphName);
     }
 
     public void removeTriples(List<Triple> triples) throws Exception {
@@ -474,6 +506,17 @@ public class TripleStore {
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
+
+    public void removeTripleWithTextIndexing(Triple triple, Property[] indexedPredicates, Object langInfo) throws Exception {
+        removeTripleWithTextIndexing(triple, null, indexedPredicates, langInfo);
+    }
+
+    public void removeTripleWithTextIndexing(Triple triple, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        ArrayList<Triple> triples = new ArrayList<Triple>();
+        triples.add(triple);
+        removeTriplesWithTextIndexing(triples, graphName, predicatesToIndex, langInfo);
+    }
+
     public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo) throws Exception {
         removeTriplesWithTextIndexing(triples, null, indexedPredicates, langInfo);
     }
@@ -484,7 +527,7 @@ public class TripleStore {
     }
 
     // Effective remove
-    public void removeTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
+    private void removeTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model model = (graphName == null)?
@@ -639,6 +682,27 @@ public class TripleStore {
 
     public void sparqlUpdate(String updateString) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        sparqlUpdate(dataset, updateString);
+    }
+
+    /**
+     * Sparql update with text index taken into account.
+     * Limitation : Be careful to work only with one graph at a time on update query !!!
+     * @param graphName if null, work on default graph
+     * @param updateString
+     * @param predicatesToIndex
+     * @param langInfo formats are :
+     *                 - null for standard indexing
+     *                 - langstring for localized indexing (ex: "fr")
+     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     */
+    public void sparqlUpdateWithTextIndexing(String graphName, String updateString, Property[] predicatesToIndex, Object langInfo) throws Exception {
+        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, langInfo);
+        sparqlUpdate(dataset, updateString);
+    }
+
+    //Effective sparqlUpdate
+    private void sparqlUpdate(Dataset dataset, String updateString) throws Exception {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             GraphStore graphStore = GraphStoreFactory.create(dataset);
@@ -654,13 +718,29 @@ public class TripleStore {
     }
 
 
-    //to de removed
-    public Hashtable<String, String>[] getResults( String queryName, Object... params ) throws Exception {
-        return null;
+
+
+    /*************/
+    /* Inference */
+    /*************/
+
+    public void doInference(String graphName, String graphSchema) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        dataset.begin(ReadWrite.WRITE) ;
+
+        Model modelSchema = dataset.getNamedModel(getUri(graphSchema));
+        Model modelData = dataset.getNamedModel(getUri(graphName));
+        try {
+            Reasoner reasoner = ReasonerRegistry.getOWLMicroReasoner();
+            reasoner = reasoner.bindSchema(modelSchema);
+            InfModel infModel = ModelFactory.createInfModel(reasoner, modelData);
+            modelData.add(infModel.listStatements());
+            dataset.commit();
+        } finally {
+            dataset.end();
+        }
     }
-    public int getResultsCount(String queryName, Object... params) throws Exception {
-        return -1;
-    }
+
 
     /********************/
     /* Misc. operations */

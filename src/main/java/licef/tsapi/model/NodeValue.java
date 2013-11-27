@@ -10,12 +10,12 @@ public class NodeValue {
     public NodeValue() {
     }
 
-    public String getValue() {
-        return value;
+    public String getContent() {
+        return content;
     }
 
-    public void setValue(String value) {
-        this.value = value;
+    public void setContent(String content) {
+        this.content = content;
     }
 
     public boolean isLiteral() {
@@ -36,7 +36,7 @@ public class NodeValue {
     }
 
     public String toString() {
-        String res = value;
+        String res = content;
         if (isLiteral()) {
             res = "\"" + res + "\"";
             if (language != null && !"".equals(language))
@@ -47,7 +47,7 @@ public class NodeValue {
         return res;
     }
 
-    String value;
+    String content;
     boolean isLiteral = false;
     String language;
 }

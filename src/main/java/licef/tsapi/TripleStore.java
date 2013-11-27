@@ -10,6 +10,7 @@ import com.hp.hpl.jena.sparql.core.Quad;
 import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.update.*;
 import licef.IOUtil;
+import licef.LangUtil;
 import licef.tsapi.model.*;
 import licef.tsapi.model.Triple;
 import licef.tsapi.util.Util;
@@ -63,12 +64,15 @@ public class TripleStore {
         }
     }
 
-    String getUri(String element) {
-        if (element != null && !"".equals(element) &&
-                !element.startsWith("http://") && !element.startsWith(namespace))
-            element = namespace + element;
-        return element;
+
+    /****************************/
+    /* Vocabularies, ontologies */
+    /****************************/
+
+    public void registerVocabulary(String vocUri, Class vocClass) {
+        Util.registerVocabulary(vocUri, vocClass);
     }
+
 
     /**********************/
     /* Dataset operations */
@@ -222,7 +226,11 @@ public class TripleStore {
 
     //po
     public Triple[] getTriplesWithPredicateObject(Property predicate, String object, boolean isObjectLiteral, String language) throws Exception {
-        return getTriplesWithPredicateObject(predicate.getURI(), object, isObjectLiteral, language, null);
+        return getTriplesWithPredicateObject(predicate, object, isObjectLiteral, language, null);
+    }
+
+    public Triple[] getTriplesWithPredicateObject(Property predicate, String object, boolean isObjectLiteral, String language, String graphName) throws Exception {
+        return getTriplesWithPredicateObject(predicate.getURI(), object, isObjectLiteral, language, graphName);
     }
 
     public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language) throws Exception {
@@ -243,6 +251,7 @@ public class TripleStore {
             Node s = (subject != null)?NodeFactory.createURI(subject):Node.ANY;
             Node p = (predicate != null)?NodeFactory.createURI(predicate):Node.ANY;
             Node o = Node.ANY;
+
             if (object != null) {
                 if (isObjectLiteral) {
                     if (language != null && !"".equals(language))
@@ -257,8 +266,8 @@ public class TripleStore {
             Iterator<Quad> quadIter = dataset.asDatasetGraph().find(graph, s, p, o) ;
             for (; quadIter.hasNext(); ) {
                 Quad quad = quadIter.next();
-                String resSubject = quad.getSubject().getURI();
-                String resPred = quad.getPredicate().getURI();
+                String resSubject = quad.getSubject().toString();
+                String resPred = quad.getPredicate().toString();
                 Node _object = quad.getObject();
                 String resObj;
                 String resLanguage = null;
@@ -269,7 +278,7 @@ public class TripleStore {
                     resIsObjectLiteral = true;
                 }
                 else
-                    resObj = _object.getURI();
+                    resObj = _object.toString();
                 triples.add(new Triple(resSubject, resPred, resObj, resIsObjectLiteral, resLanguage));
             }
         }
@@ -582,11 +591,11 @@ public class TripleStore {
                     NodeValue node = new NodeValue();
                     if (n instanceof Literal) {
                         node.setLiteral(true);
-                        node.setValue((((Literal)n).getValue().toString()));
+                        node.setContent((((Literal)n).getValue().toString()));
                         node.setLanguage(((Literal)n).getLanguage());
                     }
                     else
-                        node.setValue(n.toString());
+                        node.setContent(n.toString());
                     tuple.setValue(varName, node);
                 }
                 if (varNames == null)
@@ -742,12 +751,75 @@ public class TripleStore {
     }
 
 
+
     /********************/
     /* Misc. operations */
     /********************/
 
-    public void registerVocabulary(String vocUri, Class vocClass) {
-        Util.registerVocabulary(vocUri, vocClass);
+    String getUri(String element) {
+        if (element != null && !"".equals(element) && !element.startsWith("http://"))
+            element = namespace + element;
+        return element;
     }
+
+    public boolean isResourceExists(String uri) throws Exception {
+        return isResourceExists(uri, null);
+    }
+
+    public boolean isResourceExists(String uri, String graphName) throws Exception {
+        return getTriplesWithSubject(uri, graphName).length > 0;
+    }
+
+    /**
+     * Retrieve the best literal with following ranking :
+     * 1 - With exactly same language
+     * 2 - With first similar language (ex: fr-CA for a fr request)
+     * 3 - unlocalized literal when no matching language
+     * 4 - default case : first found result
+     * @returns Array of 2 Strings: the first is the best literal, the second is its language.
+     */
+
+    public String[] getBetterLocalizedLiteralObject(String uri, Property predicate, String lang) throws Exception {
+        return getBetterLocalizedLiteralObject(uri, predicate, lang, null);
+    }
+
+    public String[] getBetterLocalizedLiteralObject(String uri, Property predicate, String lang, String graphName) throws Exception {
+        return getBetterLocalizedLiteralObject(uri, predicate.getURI(), lang, graphName);
+    }
+
+    public String[] getBetterLocalizedLiteralObject(String uri, String predicate, String lang) throws Exception {
+        return getBetterLocalizedLiteralObject(uri, predicate, lang, null);
+    }
+
+    public String[] getBetterLocalizedLiteralObject(String uri, String predicate, String lang, String graphName) throws Exception {
+        lang = LangUtil.convertLangToISO2(lang);
+        Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate, graphName);
+        if (lang == null)
+            lang = "###"; //to force unlocalized choice
+        String[] res = null;
+        boolean foundWithSimilarLanguage = false;
+        boolean foundWithoutLanguage = false;
+        for (Triple t: triples) {
+            if (t.getLanguage() != null && t.getLanguage().toLowerCase().equals(lang.toLowerCase())) {
+                res = new String[] { t.getObject(), t.getLanguage() };
+                break;
+            }
+            if (t.getLanguage() != null &&
+                    ( (t.getLanguage().toLowerCase().startsWith(lang.toLowerCase())) ||
+                            (lang.startsWith(t.getLanguage().toLowerCase())) ) &&
+                    !foundWithSimilarLanguage) {
+                res = new String[] { t.getObject(), t.getLanguage() };
+                foundWithSimilarLanguage = true;
+            }
+            if (t.getLanguage() == null && !foundWithSimilarLanguage && !foundWithoutLanguage) {
+                res = new String[] { t.getObject(), t.getLanguage() };
+                foundWithoutLanguage = true;
+            }
+            if (res == null)
+                res = new String[] { t.getObject(), t.getLanguage() };
+        }
+        return res;
+    }
+
 
 }

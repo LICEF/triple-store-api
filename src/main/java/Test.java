@@ -39,7 +39,8 @@ public class Test {
 //        ts.startServer();
 
 
-//            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.ttl"), "TURTLE", null);
+//            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.ttl"), TripleStore.TURTLE, "vv");
+//            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.n3"), TripleStore.N_TRIPLE);
 //            ts.loadRDFa(new URL("http://www.3kbo.com/examples/rdfa/simple.html").openStream(), "http://local1");
 //            ts.loadRDFa(new URL("http://examples.tobyinkster.co.uk/hcard").openStream(), "http://local2");
 //            ts.loadRDFa(new FileInputStream("e:/zzz/tsapiTest/big.htm"), "http://local3");

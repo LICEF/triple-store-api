@@ -1,7 +1,8 @@
 package licef.tsapi;
 
-import com.hp.hpl.jena.graph.*;
-import com.hp.hpl.jena.graph.impl.LiteralLabel;
+import com.hp.hpl.jena.graph.Node;
+import com.hp.hpl.jena.graph.NodeFactory;
+import com.hp.hpl.jena.graph.Node_Literal;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.reasoner.Reasoner;
@@ -11,24 +12,21 @@ import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.update.*;
 import licef.IOUtil;
 import licef.LangUtil;
-import licef.tsapi.model.*;
+import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
+import licef.tsapi.model.Tuple;
 import licef.tsapi.util.Util;
 import org.apache.jena.query.text.EntityDefinition;
 import org.apache.jena.query.text.TextDatasetFactory;
 import org.apache.jena.query.text.TextIndex;
-import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 
@@ -38,6 +36,13 @@ import java.util.List;
  * Date: 13-11-13
  */
 public class TripleStore {
+
+    public static final int RDFXML      = 0;
+    public static final int TURTLE      = 1;
+    public static final int N_TRIPLE    = 2;
+    public static final int JSON        = 3;
+    public static final int HTML        = 4;
+    public static final int XHTML       = 5;
 
     String namespace = "http://localhost/ns#";
     String databaseDir = "./data";
@@ -100,7 +105,8 @@ public class TripleStore {
 
     /* Association with Lucene indexing */
 
-    private Dataset createIndexDataset(String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+    private Dataset createIndexDataset(Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         EntityDefinition entDef = new EntityDefinition("uri", "text");
         for (Property p : predicatesToIndex)
             entDef.set(Util.getIndexFieldProperty(p), p.asNode());
@@ -111,7 +117,7 @@ public class TripleStore {
             else
                 extra += "-ml";
         }
-        String graph = (graphName != null)?"/graphs/"+graphName:"/default";
+        String graph = (_graphName != null)?"/graphs/"+_graphName:"/default";
         String path = this.databaseDir + "/lucene" + graph + extra;
         IOUtil.createDirectory(path);
         File dir = new File(path);
@@ -132,18 +138,15 @@ public class TripleStore {
     /* Querying triples */
     /********************/
 
-    public Triple[] getAllTriples() throws Exception {
-        return getAllTriples(null);
-    }
-
-    public Triple[] getAllTriples(String graphName) throws Exception {
+    public Triple[] getAllTriples(String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.READ) ;
         ArrayList<Triple> triples = new ArrayList<Triple>();
         try {
-            Model model = (graphName == null)?
+            Model model = (_graphName == null)?
                 dataset.getDefaultModel():
-                dataset.getNamedModel(getUri(graphName));
+                dataset.getNamedModel(getUri(_graphName));
             for (StmtIterator it = model.listStatements(); it.hasNext(); ) {
                 Statement stmt = it.nextStatement();
                 String subject = stmt.getSubject().getURI();
@@ -168,17 +171,14 @@ public class TripleStore {
         return triples.toArray(new Triple[triples.size()]);
     }
 
-    public long getAllTriplesCount() throws Exception {
-        return getAllTriplesCount(null);
-    }
-
-    public long getAllTriplesCount(String graphName) throws Exception {
+    public long getAllTriplesCount(String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.READ);
         try {
-            Model model = (graphName == null)?
+            Model model = (_graphName == null)?
                     dataset.getDefaultModel():
-                    dataset.getNamedModel(getUri(graphName));
+                    dataset.getNamedModel(getUri(_graphName));
             return model.size();
         }
         finally {
@@ -187,72 +187,45 @@ public class TripleStore {
     }
 
     //s
-    public Triple[] getTriplesWithSubject(String subject) throws Exception {
-        return getTriplesWithSubjectPredicateObject(subject, null, null, false, null, null);
-    }
-
-    public Triple[] getTriplesWithSubject(String subject, String graphName) throws Exception {
+    public Triple[] getTriplesWithSubject(String subject, String... graphName) throws Exception {
         return getTriplesWithSubjectPredicateObject(subject, null, null, false, null, graphName);
     }
 
     //p
-    public Triple[] getTriplesWithPredicate(Property predicate) throws Exception {
-        return getTriplesWithPredicate(predicate.getURI());
-    }
-
-    public Triple[] getTriplesWithPredicate(String predicate) throws Exception {
-        return getTriplesWithPredicate(predicate, null);
-    }
-
-    public Triple[] getTriplesWithPredicate(Property predicate, String graphName) throws Exception {
+    public Triple[] getTriplesWithPredicate(Property predicate, String... graphName) throws Exception {
         return getTriplesWithPredicate(predicate.getURI(), graphName);
     }
 
-    public Triple[] getTriplesWithPredicate(String predicate, String graphName) throws Exception {
+    public Triple[] getTriplesWithPredicate(String predicate, String... graphName) throws Exception {
         return getTriplesWithSubjectPredicateObject(null, predicate, null, false, null, graphName);
     }
 
     //sp
-    public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate) throws Exception {
-        return getTriplesWithSubjectPredicate(subject, predicate.getURI());
-    }
-
-    public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate) throws Exception {
-        return getTriplesWithSubjectPredicate(subject, predicate, null);
-    }
-
-    public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate, String graphName) throws Exception {
+    public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate, String... graphName) throws Exception {
         return getTriplesWithSubjectPredicate(subject, predicate.getURI(), graphName);
     }
 
-    public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate, String graphName) throws Exception {
+    public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate, String... graphName) throws Exception {
         return getTriplesWithSubjectPredicateObject(subject, predicate, null, false, null, graphName);
     }
 
     //po
-    public Triple[] getTriplesWithPredicateObject(Property predicate, String object, boolean isObjectLiteral, String language) throws Exception {
-        return getTriplesWithPredicateObject(predicate, object, isObjectLiteral, language, null);
-    }
-
-    public Triple[] getTriplesWithPredicateObject(Property predicate, String object, boolean isObjectLiteral, String language, String graphName) throws Exception {
+    public Triple[] getTriplesWithPredicateObject(Property predicate, String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
         return getTriplesWithPredicateObject(predicate.getURI(), object, isObjectLiteral, language, graphName);
     }
 
-    public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language) throws Exception {
-        return getTriplesWithPredicateObject(predicate, object, isObjectLiteral, language, null);
-    }
-
-    public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language, String graphName) throws Exception {
+    public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
         return getTriplesWithSubjectPredicateObject(null, predicate, object, isObjectLiteral, language, graphName);
     }
 
     //spo
-    public Triple[] getTriplesWithSubjectPredicateObject(String subject, String predicate, String object, boolean isObjectLiteral, String language, String graphName) throws Exception {
+    public Triple[] getTriplesWithSubjectPredicateObject(String subject, String predicate, String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.READ);
         ArrayList<Triple> triples = new ArrayList<Triple>();
         try {
-            Node graph = (graphName != null)?NodeFactory.createURI(getUri(graphName)):NodeFactory.createURI("urn:x-arq:DefaultGraph");
+            Node graph = (_graphName != null)?NodeFactory.createURI(getUri(_graphName)):NodeFactory.createURI("urn:x-arq:DefaultGraph");
             Node s = (subject != null)?NodeFactory.createURI(subject):Node.ANY;
             Node p = (predicate != null)?NodeFactory.createURI(predicate):Node.ANY;
             Node o = Node.ANY;
@@ -299,17 +272,16 @@ public class TripleStore {
     /* Content loading */
     /*******************/
 
-    /* RDF/XML(default format, null value), TURTLE, N-TRIPLE or RDF/JSON */
 
-    public void loadContent(InputStream is) throws Exception {
-        loadContent(is, null);
-    }
+    /**
+     * Load content depending on format
+     * @param is stream to be loaded
+     * @param format RDFXML, TURTLE, N_TRIPLE or JSON constant integer
+     * @param graphName target named graph. if null, default graph is used.
+     * @throws Exception
+     */
 
-    public void loadContent(InputStream is, String graphName) throws Exception {
-        loadContent(is, null, graphName);
-    }
-
-    public void loadContent(InputStream is, String format, String graphName) throws Exception {
+    public void loadContent(InputStream is, int format, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         loadContent(dataset, is, "", format, graphName);
     }
@@ -317,6 +289,7 @@ public class TripleStore {
     /* with Lucene indexing */
 
     /**
+     * Same args of precedent function + :
      * @param predicatesToIndex array of properties to index
      * @param langInfo formats are :
      *                 - null for standard indexing
@@ -324,40 +297,29 @@ public class TripleStore {
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
 
-    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        loadRdfWithTextIndexing(is, predicatesToIndex, langInfo, null);
-    }
-
-    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, String graphName) throws Exception {
-        loadRdfWithTextIndexing(is, predicatesToIndex, langInfo, null, graphName);
-    }
-
-    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, String format, String graphName) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, langInfo);
+    public void loadContentWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, int format, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
         loadContent(dataset, is, "", format, graphName);
     }
 
 
-    /* RDFa */
+    /* Load RDFa content */
 
-    public void loadRDFa(InputStream is, String baseUri) throws Exception {
-        loadRDFa(is, baseUri, null);
-    }
-
-    public void loadRDFa(InputStream is, String baseUri, String graphName) throws Exception {
+    public void loadRDFa(InputStream is, String baseUri, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         Class.forName("net.rootdev.javardfa.jena.RDFaReader");
-        loadContent(dataset, is, baseUri, "HTML", graphName);
+        loadContent(dataset, is, baseUri, HTML, graphName);
     }
 
     //Effective load
-    private void loadContent(Dataset dataset, InputStream is, String baseUri, String format, String graphName) throws Exception {
+    private void loadContent(Dataset dataset, InputStream is, String baseUri, int format, String... graphName) throws Exception {
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model modelTmp = ModelFactory.createDefaultModel();
-            modelTmp.read(is, baseUri, format);
-            if (graphName != null)
-                dataset.addNamedModel(getUri(graphName), modelTmp);
+            modelTmp.read(is, baseUri, getFormatName(format));
+            if (_graphName != null)
+                dataset.addNamedModel(getUri(_graphName), modelTmp);
             else
                 dataset.getDefaultModel().add(modelTmp);
             dataset.commit();
@@ -372,21 +334,13 @@ public class TripleStore {
     /* Adding triples */
     /******************/
 
-    public void insertTriple(Triple triple) throws Exception {
-        insertTriple(triple, null);
-    }
-
-    public void insertTriple(Triple triple, String graphName) throws Exception {
+    public void insertTriple(Triple triple, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
         insertTriples(triples, graphName);
     }
 
-    public void insertTriples(List<Triple> triples) throws Exception {
-        insertTriples(triples, null);
-    }
-
-    public void insertTriples(List<Triple> triples, String graphName) throws Exception {
+    public void insertTriples(List<Triple> triples, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         insertTriples(dataset, triples, graphName);
     }
@@ -400,30 +354,23 @@ public class TripleStore {
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
-    public void insertTripleWithTextIndexing(Triple triple, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        insertTripleWithTextIndexing(triple, null, predicatesToIndex, langInfo);
-    }
-
-    public void insertTripleWithTextIndexing(Triple triple, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+    public void insertTripleWithTextIndexing(Triple triple, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
-        insertTriplesWithTextIndexing(triples, graphName, predicatesToIndex, langInfo);
+        insertTriplesWithTextIndexing(triples, predicatesToIndex, langInfo, graphName);
     }
 
-    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        insertTriplesWithTextIndexing(triples, null, predicatesToIndex, langInfo);
-    }
-
-    public void insertTriplesWithTextIndexing(List<Triple> triples, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, langInfo);
+    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
         insertTriples(dataset, triples, graphName);
     }
 
     // Effective insert
-    private void insertTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
+    private void insertTriples(Dataset dataset, List<Triple> triples, String... graphName) throws Exception {
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.WRITE) ;
         try {
-            Model model = (graphName == null)?
+            Model model = (_graphName == null)?
                     dataset.getDefaultModel():
                     ModelFactory.createDefaultModel();
 
@@ -442,8 +389,8 @@ public class TripleStore {
                             model.createResource(triple.getObject()));
             }
 
-            if (graphName != null)
-                dataset.addNamedModel(getUri(graphName), model);
+            if (_graphName != null)
+                dataset.addNamedModel(getUri(_graphName), model);
 
             dataset.commit();
         }
@@ -456,11 +403,7 @@ public class TripleStore {
     /* Removing triples */
     /********************/
 
-    public void clear() throws Exception {
-        clear(null);
-    }
-
-    public void clear(String graphName) throws Exception {
+    public void clear(String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         clear(dataset, graphName);
     }
@@ -475,23 +418,20 @@ public class TripleStore {
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
 
-    public void clearWithTextIndexing(Property[] indexedPredicates, Object langInfo) throws Exception {
-        clearWithTextIndexing(null, indexedPredicates, langInfo);
-    }
-
-    public void clearWithTextIndexing(String graphName, Property[] indexedPredicates, Object langInfo) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, indexedPredicates, langInfo);
+    public void clearWithTextIndexing(Property[] indexedPredicates, Object langInfo, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, graphName);
         clear(dataset, graphName);
     }
 
     // Effective clear
-    private void clear(Dataset dataset, String graphName) throws Exception {
+    private void clear(Dataset dataset, String... graphName) throws Exception {
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.WRITE);
         try {
-            if (graphName == null)
+            if (_graphName == null)
                 dataset.getDefaultModel().removeAll();
             else
-                dataset.removeNamedModel(getUri(graphName));
+                dataset.removeNamedModel(getUri(_graphName));
             dataset.commit() ;
         }
         finally {
@@ -499,21 +439,13 @@ public class TripleStore {
         }
     }
 
-    public void removeTriple(Triple triple) throws Exception {
-        removeTriple(triple, null);
-    }
-
-    public void removeTriple(Triple triple, String graphName) throws Exception {
+    public void removeTriple(Triple triple, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
         removeTriples(triples, graphName);
     }
 
-    public void removeTriples(List<Triple> triples) throws Exception {
-        removeTriples(triples, null);
-    }
-
-    public void removeTriples(List<Triple> triples, String graphName) throws Exception {
+    public void removeTriples(List<Triple> triples, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         removeTriples(dataset, triples, graphName);
     }
@@ -528,32 +460,25 @@ public class TripleStore {
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
 
-    public void removeTripleWithTextIndexing(Triple triple, Property[] indexedPredicates, Object langInfo) throws Exception {
-        removeTripleWithTextIndexing(triple, null, indexedPredicates, langInfo);
-    }
-
-    public void removeTripleWithTextIndexing(Triple triple, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+    public void removeTripleWithTextIndexing(Triple triple, Property[] indexedPredicates, Object langInfo, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
-        removeTriplesWithTextIndexing(triples, graphName, predicatesToIndex, langInfo);
+        removeTriplesWithTextIndexing(triples, indexedPredicates, langInfo, graphName);
     }
 
-    public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo) throws Exception {
-        removeTriplesWithTextIndexing(triples, null, indexedPredicates, langInfo);
-    }
-
-    public void removeTriplesWithTextIndexing(List<Triple> triples, String graphName, Property[] indexedPredicates, Object langInfo) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, indexedPredicates, langInfo);
+    public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, graphName);
         removeTriples(dataset, triples, graphName);
     }
 
     // Effective remove
-    private void removeTriples(Dataset dataset, List<Triple> triples, String graphName) throws Exception {
+    private void removeTriples(Dataset dataset, List<Triple> triples, String... graphName) throws Exception {
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.WRITE) ;
         try {
-            Model model = (graphName == null)?
+            Model model = (_graphName == null)?
                     dataset.getDefaultModel():
-                    dataset.getNamedModel(getUri(graphName));
+                    dataset.getNamedModel(getUri(_graphName));
 
             for (Triple triple : triples) {
                 Resource subject = ResourceFactory.createResource(triple.getSubject());
@@ -717,8 +642,8 @@ public class TripleStore {
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
-    public void sparqlUpdateWithTextIndexing(String graphName, String updateString, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        Dataset dataset = createIndexDataset(graphName, predicatesToIndex, langInfo);
+    public void sparqlUpdateWithTextIndexing(String updateString, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
         sparqlUpdate(dataset, updateString);
     }
 
@@ -791,19 +716,11 @@ public class TripleStore {
      * @returns Array of 2 Strings: the first is the best literal, the second is its language.
      */
 
-    public String[] getBetterLocalizedLiteralObject(String uri, Property predicate, String lang) throws Exception {
-        return getBetterLocalizedLiteralObject(uri, predicate, lang, null);
-    }
-
-    public String[] getBetterLocalizedLiteralObject(String uri, Property predicate, String lang, String graphName) throws Exception {
+    public String[] getBetterLocalizedLiteralObject(String uri, Property predicate, String lang, String... graphName) throws Exception {
         return getBetterLocalizedLiteralObject(uri, predicate.getURI(), lang, graphName);
     }
 
-    public String[] getBetterLocalizedLiteralObject(String uri, String predicate, String lang) throws Exception {
-        return getBetterLocalizedLiteralObject(uri, predicate, lang, null);
-    }
-
-    public String[] getBetterLocalizedLiteralObject(String uri, String predicate, String lang, String graphName) throws Exception {
+    public String[] getBetterLocalizedLiteralObject(String uri, String predicate, String lang, String... graphName) throws Exception {
         lang = LangUtil.convertLangToISO2(lang);
         Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate, graphName);
         if (lang == null)
@@ -836,23 +753,33 @@ public class TripleStore {
     /**
      * Dump a graph on disk
      * @param outputFile
-     * @param format "RDF/XML", "TURTLE", "N-TRIPLE" or "RDF/JSON"
+     * @param format integer constant
      */
-    public void dump(String outputFile, String format) throws Exception {
-         dump(null, outputFile, format);
-    }
-
-    public void dump(String graphName, String outputFile, String format) throws Exception {
+    public void dump(String outputFile, int format, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.WRITE);
         try {
-            Model model = (graphName == null)?
+            Model model = (_graphName == null)?
                     dataset.getDefaultModel():
-                    dataset.getNamedModel(getUri(graphName));
-            RDFDataMgr.write(new FileOutputStream(outputFile), model, RDFLanguages.nameToLang(format));
+                    dataset.getNamedModel(getUri(_graphName));
+            RDFDataMgr.write(new FileOutputStream(outputFile), model,
+                    RDFLanguages.nameToLang(getFormatName(format)));
         } finally {
             dataset.end();
         }
+    }
+
+    String getFormatName(int format) {
+        switch (format) {
+            case RDFXML: return "RDF/XML";
+            case TURTLE: return "TURTLE";
+            case N_TRIPLE: return "N-TRIPLE";
+            case JSON: return "RDF/JSON";
+            case HTML: return "HTML";
+            case XHTML: return "XHTML";
+        }
+        return null;
     }
 
 }

@@ -17,11 +17,16 @@ import licef.tsapi.util.Util;
 import org.apache.jena.query.text.EntityDefinition;
 import org.apache.jena.query.text.TextDatasetFactory;
 import org.apache.jena.query.text.TextIndex;
+import org.apache.jena.riot.Lang;
+import org.apache.jena.riot.RDFDataMgr;
+import org.apache.jena.riot.RDFLanguages;
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -290,25 +295,23 @@ public class TripleStore {
 
 
 
-    /***************/
-    /* RDF loading */
-    /***************/
+    /*******************/
+    /* Content loading */
+    /*******************/
 
-    public void loadRdf(String file) throws Exception {
-        loadRdf(file, null);
+    /* RDF/XML(default format, null value), TURTLE, N-TRIPLE or RDF/JSON */
+
+    public void loadContent(InputStream is) throws Exception {
+        loadContent(is, null);
     }
 
-    public void loadRdf(String file, String graphName) throws Exception {
-        loadRdf(new FileInputStream(file), graphName);
+    public void loadContent(InputStream is, String graphName) throws Exception {
+        loadContent(is, null, graphName);
     }
 
-    public void loadRdf(InputStream is) throws Exception {
-        loadRdf(is, null);
-    }
-
-    public void loadRdf(InputStream is, String graphName) throws Exception {
+    public void loadContent(InputStream is, String format, String graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
-        loadRdf(dataset, is, graphName);
+        loadContent(dataset, is, "", format, graphName);
     }
 
     /* with Lucene indexing */
@@ -321,29 +324,38 @@ public class TripleStore {
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
      */
 
-    public void loadRdfWithTextIndexing(String file, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        loadRdfWithTextIndexing(file, null, predicatesToIndex, langInfo);
-    }
-
-    public void loadRdfWithTextIndexing(String file, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        loadRdfWithTextIndexing(new FileInputStream(file), graphName, predicatesToIndex, langInfo);
-    }
-
     public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo) throws Exception {
-        loadRdfWithTextIndexing(is, null, predicatesToIndex, langInfo);
+        loadRdfWithTextIndexing(is, predicatesToIndex, langInfo, null);
     }
 
-    public void loadRdfWithTextIndexing(InputStream is, String graphName, Property[] predicatesToIndex, Object langInfo) throws Exception {
+    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, String graphName) throws Exception {
+        loadRdfWithTextIndexing(is, predicatesToIndex, langInfo, null, graphName);
+    }
+
+    public void loadRdfWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, String format, String graphName) throws Exception {
         Dataset dataset = createIndexDataset(graphName, predicatesToIndex, langInfo);
-        loadRdf(dataset, is, graphName);
+        loadContent(dataset, is, "", format, graphName);
+    }
+
+
+    /* RDFa */
+
+    public void loadRDFa(InputStream is, String baseUri) throws Exception {
+        loadRDFa(is, baseUri, null);
+    }
+
+    public void loadRDFa(InputStream is, String baseUri, String graphName) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        Class.forName("net.rootdev.javardfa.jena.RDFaReader");
+        loadContent(dataset, is, baseUri, "HTML", graphName);
     }
 
     //Effective load
-    private void loadRdf(Dataset dataset, InputStream is, String graphName) throws Exception {
+    private void loadContent(Dataset dataset, InputStream is, String baseUri, String format, String graphName) throws Exception {
         dataset.begin(ReadWrite.WRITE) ;
         try {
             Model modelTmp = ModelFactory.createDefaultModel();
-            modelTmp.read(is, null);
+            modelTmp.read(is, baseUri, format);
             if (graphName != null)
                 dataset.addNamedModel(getUri(graphName), modelTmp);
             else
@@ -821,5 +833,26 @@ public class TripleStore {
         return res;
     }
 
+    /**
+     * Dump a graph on disk
+     * @param outputFile
+     * @param format "RDF/XML", "TURTLE", "N-TRIPLE" or "RDF/JSON"
+     */
+    public void dump(String outputFile, String format) throws Exception {
+         dump(null, outputFile, format);
+    }
+
+    public void dump(String graphName, String outputFile, String format) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        dataset.begin(ReadWrite.WRITE);
+        try {
+            Model model = (graphName == null)?
+                    dataset.getDefaultModel():
+                    dataset.getNamedModel(getUri(graphName));
+            RDFDataMgr.write(new FileOutputStream(outputFile), model, RDFLanguages.nameToLang(format));
+        } finally {
+            dataset.end();
+        }
+    }
 
 }

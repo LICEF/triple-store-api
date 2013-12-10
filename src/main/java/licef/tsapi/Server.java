@@ -57,7 +57,7 @@ public class Server {
     public void startFuseki() {
         System.out.println("Start Fuseki server...");
         Fuseki.init() ;
-        new FusekiCmd("--update", "--loc=" + databasePath, "--pages=" + pagesDir, "/ds").mainRun() ;
+        new FusekiCmd("--loc=" + databasePath, "--pages=" + pagesDir, "/ds").mainRun() ;
     }
 
 }

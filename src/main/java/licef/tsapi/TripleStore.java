@@ -15,7 +15,9 @@ import licef.LangUtil;
 import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
 import licef.tsapi.model.Tuple;
+import licef.tsapi.util.Translator;
 import licef.tsapi.util.Util;
+import licef.tsapi.vocabulary.VocUtil;
 import org.apache.jena.query.text.EntityDefinition;
 import org.apache.jena.query.text.TextDatasetFactory;
 import org.apache.jena.query.text.TextIndex;
@@ -36,13 +38,6 @@ import java.util.List;
  * Date: 13-11-13
  */
 public class TripleStore {
-
-    public static final int RDFXML      = 0;
-    public static final int TURTLE      = 1;
-    public static final int N_TRIPLE    = 2;
-    public static final int JSON        = 3;
-    public static final int HTML        = 4;
-    public static final int XHTML       = 5;
 
     String namespace = "http://localhost/ns#";
     String databaseDir = "./data";
@@ -80,7 +75,7 @@ public class TripleStore {
     /****************************/
 
     public void registerVocabulary(String vocUri, Class vocClass) {
-        Util.registerVocabulary(vocUri, vocClass);
+        VocUtil.registerVocabulary(vocUri, vocClass);
     }
 
 
@@ -109,7 +104,7 @@ public class TripleStore {
         String _graphName = (graphName.length != 0)?graphName[0]:null;
         EntityDefinition entDef = new EntityDefinition("uri", "text");
         for (Property p : predicatesToIndex)
-            entDef.set(Util.getIndexFieldProperty(p), p.asNode());
+            entDef.set(VocUtil.getIndexFieldProperty(p), p.asNode());
         String extra = "";
         if (langInfo != null) {
             if (langInfo instanceof String)
@@ -308,7 +303,7 @@ public class TripleStore {
     public void loadRDFa(InputStream is, String baseUri, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         Class.forName("net.rootdev.javardfa.jena.RDFaReader");
-        loadContent(dataset, is, baseUri, HTML, graphName);
+        loadContent(dataset, is, baseUri, Constants.HTML, graphName);
     }
 
     //Effective load
@@ -316,8 +311,7 @@ public class TripleStore {
         String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.WRITE) ;
         try {
-            Model modelTmp = ModelFactory.createDefaultModel();
-            modelTmp.read(is, baseUri, getFormatName(format));
+            Model modelTmp = Translator.loadContent(is, baseUri, format);
             if (_graphName != null)
                 dataset.addNamedModel(getUri(_graphName), modelTmp);
             else
@@ -763,23 +757,10 @@ public class TripleStore {
             Model model = (_graphName == null)?
                     dataset.getDefaultModel():
                     dataset.getNamedModel(getUri(_graphName));
-            RDFDataMgr.write(new FileOutputStream(outputFile), model,
-                    RDFLanguages.nameToLang(getFormatName(format)));
+            Translator.translate(model, format, new FileOutputStream(outputFile));
         } finally {
             dataset.end();
         }
-    }
-
-    String getFormatName(int format) {
-        switch (format) {
-            case RDFXML: return "RDF/XML";
-            case TURTLE: return "TURTLE";
-            case N_TRIPLE: return "N-TRIPLE";
-            case JSON: return "RDF/JSON";
-            case HTML: return "HTML";
-            case XHTML: return "XHTML";
-        }
-        return null;
     }
 
 }

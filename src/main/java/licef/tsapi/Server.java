@@ -20,10 +20,12 @@ public class Server {
 
     String databasePath;
     String pagesDir;
+    boolean readOnly;
 
-    public Server(String databasePath, String serverDir) {
+    public Server(String databasePath, String serverDir, boolean readOnly) {
         this.databasePath = databasePath;
         this.pagesDir = serverDir + "/pages";
+        this.readOnly = readOnly;
     }
 
     void start() {
@@ -57,7 +59,10 @@ public class Server {
     public void startFuseki() {
         System.out.println("Start Fuseki server...");
         Fuseki.init() ;
-        new FusekiCmd("--loc=" + databasePath, "--pages=" + pagesDir, "/ds").mainRun() ;
+        if (readOnly)
+            new FusekiCmd("--loc=" + databasePath, "--pages=" + pagesDir, "/ds").mainRun();
+        else
+            new FusekiCmd("--update", "--loc=" + databasePath, "--pages=" + pagesDir, "/ds").mainRun();
     }
 
 }

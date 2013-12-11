@@ -62,9 +62,9 @@ public class TripleStore {
         IOUtil.createDirectory(this.databasePath);
     }
 
-    public void startServer() {
+    public void startServer(boolean readOnly) {
         if (server == null) {
-            server = new Server(databasePath, serverDir);
+            server = new Server(databasePath, serverDir, readOnly);
             server.start();
         }
     }

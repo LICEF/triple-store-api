@@ -122,6 +122,12 @@
             <version>0.4.2</version>
         </dependency>
         <dependency>
+            <groupId>org.semarglproject</groupId>
+            <artifactId>semargl-jena</artifactId>
+            <version>0.6.1</version>
+        </dependency>
+ 
+        <dependency>
             <groupId>nu.validator.htmlparser</groupId>
             <artifactId>htmlparser</artifactId>
             <version>1.4</version>

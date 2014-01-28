@@ -699,7 +699,7 @@ public class TripleStore {
     /* Misc. operations */
     /********************/
 
-    String getUri(String element) {
+    public String getUri(String element) {
         if (element != null && !"".equals(element) && !element.startsWith("http://"))
             element = namespace + element;
         return element;

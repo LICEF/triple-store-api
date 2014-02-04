@@ -317,6 +317,11 @@ public class TripleStore {
             loadContent(dataset, is, baseUri, Constants.RDFA, graphName);
         }
     }
+    
+    public void loadTurtle(InputStream is, String baseUri, String... graphName) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        loadContent(dataset, is, baseUri, Constants.TURTLE, graphName);
+    }
 
     //Effective load
     private void loadContent(Dataset dataset, InputStream is, String baseUri, int format, String... graphName) throws Exception {

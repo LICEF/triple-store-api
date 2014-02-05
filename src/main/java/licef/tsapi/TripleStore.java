@@ -509,38 +509,35 @@ public class TripleStore {
         Query query = QueryFactory.create(queryString);
         QueryExecution qexec = QueryExecutionFactory.create(query, dataset);
         try {
-            String[] varNames = null;
-            ArrayList<String> vars = new ArrayList<String>();
-            for (ResultSet results = qexec.execSelect(); results.hasNext();) {
+            ResultSet results = qexec.execSelect();
+            List<String> varNames = results.getResultVars();
+            for (; results.hasNext(); ) {
                 QuerySolution res = results.nextSolution();
                 Tuple tuple = new Tuple();
-                for (Iterator it = res.varNames(); it.hasNext();) {
+                for (Iterator it = varNames.iterator(); it.hasNext(); ) {
                     String varName = it.next().toString();
-                    if (varNames == null)
-                        vars.add(varName);
                     RDFNode n = res.get(varName);
                     NodeValue node = new NodeValue();
-                    if (n instanceof Literal) {
+                    if (n == null)
+                        node.setContent("");
+                    else if (n.isLiteral()) {
                         node.setLiteral(true);
-                        node.setContent((((Literal)n).getValue().toString()));
-                        node.setLanguage(((Literal)n).getLanguage());
-                    }
-                    else
+                        node.setContent((((Literal) n).getValue().toString()));
+                        node.setLanguage(((Literal) n).getLanguage());
+                    } else
                         node.setContent(n.toString());
                     tuple.setValue(varName, node);
                 }
-                if (varNames == null)
-                    varNames = vars.toArray(new String[vars.size()]);
-                tuple.setVarNames(varNames);
+                tuple.setVarNames(varNames.toArray(new String[varNames.size()]));
                 tuples.add(tuple);
             }
-        }
-        finally {
-            qexec.close() ;
+        } finally {
+            qexec.close();
             dataset.end();
         }
         return tuples.toArray(new Tuple[tuples.size()]);
     }
+
 
     public boolean sparqlAsk(String queryString) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
@@ -707,7 +704,7 @@ public class TripleStore {
      * 2 - With first similar language (ex: fr-CA for a fr request)
      * 3 - unlocalized literal when no matching language
      * 4 - default case : first found result
-     * @returns Array of 2 Strings: the first is the best literal, the second is its language.
+     * @return Array of 2 Strings: the first is the best literal, the second is its language.
      */
 
     public String[] getBetterLocalizedLiteralObject(String uri, Property predicate, String lang, String... graphName) throws Exception {

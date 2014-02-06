@@ -17,6 +17,7 @@ public class Util {
             case Constants.JSON: return "RDF/JSON";
             case Constants.HTML: return "HTML";
             case Constants.XHTML: return "XHTML";
+            case Constants.RDFA: return "RDFA";
         }
         return null;
     }

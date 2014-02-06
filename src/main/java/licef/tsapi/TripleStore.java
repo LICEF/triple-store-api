@@ -32,12 +32,18 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.semarglproject.jena.rdf.rdfa.JenaRdfaReader;
+
+
 /**
  * Created with IntelliJ IDEA.
  * User: amiara
  * Date: 13-11-13
  */
 public class TripleStore {
+
+    public enum RdfaApi { JAVA_RDFA, SEMARGL };
+    public enum RdfaFormat { RDFA_HTML, RDFA_XHTML };
 
     String namespace = "http://localhost/ns#";
     String databaseDir = "./data";
@@ -299,11 +305,22 @@ public class TripleStore {
 
 
     /* Load RDFa content */
-
-    public void loadRDFa(InputStream is, String baseUri, String... graphName) throws Exception {
+    public void loadRDFa(RdfaApi api, RdfaFormat format, InputStream is, String baseUri, String... graphName) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
-        Class.forName("net.rootdev.javardfa.jena.RDFaReader");
-        loadContent(dataset, is, baseUri, Constants.HTML, graphName);
+        
+        if( api == RdfaApi.JAVA_RDFA ) {
+            Class.forName("net.rootdev.javardfa.jena.RDFaReader");
+            loadContent(dataset, is, baseUri, ( format == RdfaFormat.RDFA_XHTML ? Constants.XHTML : Constants.HTML ), graphName);
+        }
+        else if( api == RdfaApi.SEMARGL ) {
+            JenaRdfaReader.inject();
+            loadContent(dataset, is, baseUri, Constants.RDFA, graphName);
+        }
+    }
+    
+    public void loadTurtle(InputStream is, String baseUri, String... graphName) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        loadContent(dataset, is, baseUri, Constants.TURTLE, graphName);
     }
 
     //Effective load
@@ -684,7 +701,7 @@ public class TripleStore {
     /* Misc. operations */
     /********************/
 
-    String getUri(String element) {
+    public String getUri(String element) {
         if (element != null && !"".equals(element) && !element.startsWith("http://"))
             element = namespace + element;
         return element;

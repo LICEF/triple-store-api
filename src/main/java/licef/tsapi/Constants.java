@@ -13,5 +13,6 @@ public class Constants {
     public static final int JSON        = 3;
     public static final int HTML        = 4;
     public static final int XHTML       = 5;
+    public static final int RDFA        = 6;
 
 }

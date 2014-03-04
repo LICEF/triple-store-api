@@ -167,21 +167,18 @@ public class Test {
         frame.setSize(250, 200);
         JButton buttonQuery = new JButton("Query");
         buttonQuery.addActionListener(new ActionListener() {
-            @Override
             public void actionPerformed(ActionEvent e) {
                  query(ts);
             }
         });
         JButton buttonInsert = new JButton("Insert");
         buttonInsert.addActionListener(new ActionListener() {
-            @Override
             public void actionPerformed(ActionEvent e) {
                 insert(ts);
             }
         });
         JButton buttonRemoveAll = new JButton("Remove All");
         buttonRemoveAll.addActionListener(new ActionListener() {
-            @Override
             public void actionPerformed(ActionEvent e) {
                 clear(ts);
             }

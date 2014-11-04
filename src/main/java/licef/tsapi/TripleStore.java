@@ -767,13 +767,17 @@ public class TripleStore {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         String _graphName = (graphName.length != 0)?graphName[0]:null;
         dataset.begin(ReadWrite.WRITE);
+        FileOutputStream os = null;
         try {
+            os = new FileOutputStream(outputFile);
             Model model = (_graphName == null)?
                     dataset.getDefaultModel():
                     dataset.getNamedModel(getUri(_graphName));
-            Translator.translate(model, format, new FileOutputStream(outputFile));
+            Translator.translate(model, format, os);
         } finally {
             dataset.end();
+            if( os != null )
+                os.close();
         }
     }
 

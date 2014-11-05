@@ -521,6 +521,25 @@ public class TripleStore {
 
     public Tuple[] sparqlSelect(String queryString) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
+        return sparqlSelect(dataset, queryString);
+    }
+
+    /**
+     * Sparql select with text index taken into account.
+     * @param graphName if null, work on default graph
+     * @param queryString
+     * @param predicatesToIndex
+     * @param langInfo formats are :
+     *                 - null for standard indexing
+     *                 - langstring for localized indexing (ex: "fr")
+     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     */
+    public Tuple[] sparqlSelectWithTextIndexing(String queryString, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
+        return sparqlSelect(dataset, queryString);
+    }
+
+    public Tuple[] sparqlSelect(Dataset dataset, String queryString) throws Exception {
         dataset.begin(ReadWrite.READ);
         ArrayList<Tuple> tuples = new ArrayList<Tuple>();
         Query query = QueryFactory.create(queryString);
@@ -554,7 +573,6 @@ public class TripleStore {
         }
         return tuples.toArray(new Tuple[tuples.size()]);
     }
-
 
     public boolean sparqlAsk(String queryString) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);

@@ -75,9 +75,10 @@ public class TripleStore {
         }
     }
 
-    public void stopServer(boolean readOnly) {
+    public void stopServer() {
         if (server != null) {
             server.stop();
+            server = null;
         }
     }
 

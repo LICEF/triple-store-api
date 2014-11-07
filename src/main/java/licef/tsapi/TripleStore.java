@@ -75,6 +75,12 @@ public class TripleStore {
         }
     }
 
+    public void stopServer(boolean readOnly) {
+        if (server != null) {
+            server.stop();
+        }
+    }
+
 
     /****************************/
     /* Vocabularies, ontologies */

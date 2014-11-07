@@ -4,7 +4,7 @@
     <artifactId>licef-tsapi</artifactId>
     <packaging>jar</packaging>
     <name>Licef triple store API</name>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
 
     <build>
         <resources>

@@ -35,6 +35,10 @@ public class Server {
                 "startFuseki", new Object[]{}))).start();
     }
 
+    void stop() {
+        Fuseki.getServer().stop();
+    }
+
     private void initPagesDir() {
         if (new File(pagesDir).exists())
             return;

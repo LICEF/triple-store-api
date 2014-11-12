@@ -1,6 +1,7 @@
 import com.hp.hpl.jena.query.Dataset;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.tdb.TDBFactory;
+import licef.tsapi.Constants;
 import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
 import licef.tsapi.TripleStore;
@@ -32,44 +33,50 @@ public class Test {
 
     public static void main(String[] args) {
         try {
-        String dbPath = "e:/zzz/tsapiTest/data";
+        String dbPath = "e:/zzz/tsapiTest2/data";
 //            String dbPath = "e:/proeaf/database";
-            String serverPath = "e:/zzz/tsapiTest";
+            String serverPath = "e:/zzz/tsapiTest2";
             TripleStore ts = new TripleStore(dbPath, serverPath, null);
 //        ts.startServer();
 
 
-//            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.ttl"), TripleStore.TURTLE, "vv");
-//            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.n3"), TripleStore.N_TRIPLE);
-//            ts.loadRDFa(new URL("http://www.3kbo.com/examples/rdfa/simple.html").openStream(), "http://local1");
-//            ts.loadRDFa(new URL("http://examples.tobyinkster.co.uk/hcard").openStream(), "http://local2");
-//            ts.loadRDFa(new FileInputStream("e:/zzz/tsapiTest/big.htm"), "http://local3");
+//            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.ttl"), Constants.TURTLE, "vv");
+//            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.n3"), Constants.N_TRIPLE);
+//            ts.loadRDFa(TripleStore.RdfaApi.JAVA_RDFA, TripleStore.RdfaFormat.RDFA_HTML, new URL("http://www.3kbo.com/examples/rdfa/simple.html").openStream(), "http://local1");
+//            ts.loadRDFa(TripleStore.RdfaApi.JAVA_RDFA, TripleStore.RdfaFormat.RDFA_HTML, new URL("http://examples.tobyinkster.co.uk/hcard").openStream(), "http://local2");
+//            ts.loadRDFa(TripleStore.RdfaApi.JAVA_RDFA, TripleStore.RdfaFormat.RDFA_HTML, new FileInputStream("e:/zzz/tsapiTest/big.htm"), "http://local3");
 
+
+//            ts.loadContentWithTextIndexing(new FileInputStream("e:/zzz/tsapiTest/lom1.7.rdf"),
+//                    new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null, Constants.RDFXML);
 
 //        launchControlPanel(ts);
 
-/*
             ArrayList<Triple> l = new ArrayList<Triple>();
-            Triple t1 = new Triple("http://uri/res 10", SKOS.broadMatch, "http://uri/res2");
-            Triple t2 = new Triple("http://uri/res1", SKOS.prefLabel, "Hello");
+//            Triple t1 = new Triple("http://uri/res 10", SKOS.broadMatch, "http://uri/res2");
+            Triple t0 = new Triple("http://uri/res1", SKOS.prefLabel, "Hello", "en");
+            Triple t2 = new Triple("http://uri/res1", SKOS.prefLabel, "bye");
             Triple t3 = new Triple("http://uri/res1", SKOS.prefLabel, "bonjour les amis", "fr");
-            Triple t4 = new Triple("http://uri/res2", SKOS.prefLabel, "comment allez vous", "fr");
-            Triple t5 = new Triple("http://uri/res2", SKOS.broadMatch, "http://uri/res3");
-            l.add(t1);
+            Triple t4 = new Triple("http://uri/res2", SKOS.prefLabel, "comment allez vous les amis", "fr");
+//            Triple t5 = new Triple("http://uri/res2", SKOS.broadMatch, "http://uri/res3");
+            l.add(t0);
+//            l.add(t1);
             l.add(t2);
             l.add(t3);
             l.add(t4);
-            l.add(t5);
-*/
+//            l.add(t5);
 
 
 //            ts.insertTriples(l);
+//            ts.insertTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, "fr");
+//            ts.insertTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
+
+
 //            ts.removeTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"});
 //            ts.insertTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, null);
 //            ts.insertTriplesWithTextIndexing(l, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"});
 //            Triple[] toDelete = ts.getTriplesWithSubjectPredicate("http://uri/res1", SKOS.broadMatch, "testNamed");
 //            ts.removeTriples(Arrays.asList(toDelete), "testNamed");
-
 
 //            boolean b = ts.isResourceExists("http://uri/res1", "named");
 //            System.out.println("b = " + b);
@@ -99,6 +106,22 @@ public class Test {
             for (Tuple ssu : ttu) {
                 System.out.println("n = " + ssu);
             }*/
+
+            String q = "PREFIX text: <http://jena.apache.org/text#>\n" +
+                    "PREFIX skos: <http://www.w3.org/2004/02/skos/core#>\n" +
+                    "SELECT * " +
+                    "WHERE { " +
+                    "(?uri ?score) text:query (skos:prefLabel 'comment' 'lang:fr' ) .\n" +
+                    "?uri skos:prefLabel ?label .\n" +
+                    "} ";
+
+
+//            Tuple[] ttu = ts.sparqlSelectWithTextIndexing(q, new Property[]{SKOS.prefLabel}, "fr");
+            Tuple[] ttu = ts.sparqlSelectWithTextIndexing(q, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
+            for (Tuple ssu : ttu) {
+                System.out.println("n = " + ssu);
+            }
+
 
             //ASK
             /*String q2 = "ASK  " +
@@ -147,10 +170,10 @@ public class Test {
             ts.sparqlUpdate(q);*/
 
 
-            Triple[] tt = ts.getAllTriples();
+            /*Triple[] tt = ts.getAllTriples();
             for (Triple ss : tt) {
                 System.out.println("n = " + ss);
-            }
+            }*/
 //            ts.dump("e:/zzz/tsapiTest/output.n3", "N-TRIPLE");
 //            ts.dump("e:/zzz/tsapiTest/output.ttl", "TURTLE");
 //            ts.dump("e:/zzz/tsapiTest/output.rdf", "RDF/XML");

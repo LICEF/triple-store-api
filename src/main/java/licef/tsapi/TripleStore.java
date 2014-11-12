@@ -113,8 +113,7 @@ public class TripleStore {
 
     /* Association with Lucene indexing */
 
-    private Dataset createIndexDataset(Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+    private Dataset createIndexDataset(Property[] predicatesToIndex, Object langInfo, String indexName) throws Exception {
         EntityDefinition entDef = new EntityDefinition("uri", "text");
         for (Property p : predicatesToIndex)
             entDef.set(VocUtil.getIndexFieldProperty(p), p.asNode());
@@ -125,8 +124,8 @@ public class TripleStore {
             else
                 extra += "-ml";
         }
-        String graph = (_graphName != null)?"/graphs/"+_graphName:"/default";
-        String path = this.databaseDir + "/lucene" + graph + extra;
+        String indexPath = (indexName != null)?"/"+indexName:"/default";
+        String path = this.databaseDir + "/lucene" + indexPath + extra;
         IOUtil.createDirectory(path);
         File dir = new File(path);
         TextIndex index;
@@ -303,10 +302,11 @@ public class TripleStore {
      *                 - null for standard indexing
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
 
-    public void loadContentWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, int format, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
+    public void loadContentWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, String indexName, int format, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
         loadContent(dataset, is, "", format, graphName);
     }
 
@@ -371,15 +371,16 @@ public class TripleStore {
      *                 - null for standard indexing
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
-    public void insertTripleWithTextIndexing(Triple triple, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
+    public void insertTripleWithTextIndexing(Triple triple, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
-        insertTriplesWithTextIndexing(triples, predicatesToIndex, langInfo, graphName);
+        insertTriplesWithTextIndexing(triples, predicatesToIndex, langInfo, indexName, graphName);
     }
 
-    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
+    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
         insertTriples(dataset, triples, graphName);
     }
 
@@ -434,10 +435,11 @@ public class TripleStore {
      *                 - null for standard indexing
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
 
-    public void clearWithTextIndexing(Property[] indexedPredicates, Object langInfo, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, graphName);
+    public void clearWithTextIndexing(Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, indexName);
         clear(dataset, graphName);
     }
 
@@ -476,16 +478,17 @@ public class TripleStore {
      *                 - null for standard indexing
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
 
-    public void removeTripleWithTextIndexing(Triple triple, Property[] indexedPredicates, Object langInfo, String... graphName) throws Exception {
+    public void removeTripleWithTextIndexing(Triple triple, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
-        removeTriplesWithTextIndexing(triples, indexedPredicates, langInfo, graphName);
+        removeTriplesWithTextIndexing(triples, indexedPredicates, langInfo, indexName, graphName);
     }
 
-    public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, graphName);
+    public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, indexName);
         removeTriples(dataset, triples, graphName);
     }
 
@@ -540,9 +543,10 @@ public class TripleStore {
      *                 - null for standard indexing
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
-    public Tuple[] sparqlSelectWithTextIndexing(String queryString, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
+    public Tuple[] sparqlSelectWithTextIndexing(String queryString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
         return sparqlSelect(dataset, queryString);
     }
 
@@ -674,9 +678,10 @@ public class TripleStore {
      *                 - null for standard indexing
      *                 - langstring for localized indexing (ex: "fr")
      *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
-    public void sparqlUpdateWithTextIndexing(String updateString, Property[] predicatesToIndex, Object langInfo, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, graphName);
+    public void sparqlUpdateWithTextIndexing(String updateString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
+        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
         sparqlUpdate(dataset, updateString);
     }
 

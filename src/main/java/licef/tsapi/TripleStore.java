@@ -21,6 +21,7 @@ import licef.tsapi.vocabulary.VocUtil;
 import org.apache.jena.query.text.EntityDefinition;
 import org.apache.jena.query.text.TextDatasetFactory;
 import org.apache.jena.query.text.TextIndex;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
 import org.apache.lucene.store.FSDirectory;
@@ -333,7 +334,7 @@ public class TripleStore {
     //Effective load
     private void loadContent(Dataset dataset, InputStream is, String baseUri, int format, String... graphName) throws Exception {
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.WRITE) ;
+        dataset.begin(ReadWrite.WRITE);
         try {
             Model modelTmp = Translator.loadContent(is, baseUri, format);
             if (_graphName != null)
@@ -347,6 +348,41 @@ public class TripleStore {
         }
     }
 
+    /**
+     * Load a TriG format file
+     * @param path source file path
+     * @param clearFirst if true, current TDB data are erased first,
+     *                   else, new quad will be appended
+     * @throws Exception
+     */
+    public void loadDataset(String path, boolean clearFirst) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        Dataset externalDS = RDFDataMgr.loadDataset(path);
+
+        if (clearFirst) {
+            //default graph
+            clear();
+            //named graphs
+            for (Iterator it = externalDS.listNames(); it.hasNext(); ) {
+                String name = (String) it.next();
+                clear(name);
+            }
+        }
+
+        dataset.begin(ReadWrite.WRITE);
+        try {
+            //default graph
+            dataset.getDefaultModel().add(externalDS.getDefaultModel());
+            //named graphs
+            for(Iterator it = externalDS.listNames(); it.hasNext();) {
+                String name = (String)it.next();
+                dataset.addNamedModel(name, externalDS.getNamedModel(name));
+            }
+            dataset.commit();
+        } finally {
+            dataset.end();
+        }
+    }
 
     /******************/
     /* Adding triples */
@@ -810,5 +846,24 @@ public class TripleStore {
                 os.close();
         }
     }
+
+    /**
+     * Dump whole dataset on disk in TriG format
+     * @param outputFile
+     */
+    public void dumpDataset(String outputFile) throws Exception {
+        Dataset dataset = TDBFactory.createDataset(databasePath);
+        dataset.begin(ReadWrite.READ);
+        FileOutputStream os = null;
+        try {
+            os = new FileOutputStream(outputFile);
+            RDFDataMgr.write(os, dataset, Lang.TRIG);
+        } finally {
+            dataset.end();
+            if( os != null )
+                os.close();
+        }
+    }
+
 
 }

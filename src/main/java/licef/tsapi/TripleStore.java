@@ -16,14 +16,12 @@ import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
 import licef.tsapi.model.Tuple;
 import licef.tsapi.util.Translator;
-import licef.tsapi.util.Util;
 import licef.tsapi.vocabulary.VocUtil;
 import org.apache.jena.query.text.EntityDefinition;
 import org.apache.jena.query.text.TextDatasetFactory;
 import org.apache.jena.query.text.TextIndex;
 import org.apache.jena.riot.Lang;
-import org.apache.jena.riot.RDFDataMgr;
-import org.apache.jena.riot.RDFLanguages;
+
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
@@ -355,9 +353,9 @@ public class TripleStore {
      *                   else, new quad will be appended
      * @throws Exception
      */
-    public void loadDataset(String path, boolean clearFirst) throws Exception {
+    public void loadDataset(String path, int format, boolean clearFirst) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
-        Dataset externalDS = RDFDataMgr.loadDataset(path);
+        Dataset externalDS = Translator.loadDataset(path, format);
 
         if (clearFirst) {
             //default graph
@@ -851,13 +849,13 @@ public class TripleStore {
      * Dump whole dataset on disk in TriG format
      * @param outputFile
      */
-    public void dumpDataset(String outputFile) throws Exception {
+    public void dumpDataset(String outputFile, int format) throws Exception {
         Dataset dataset = TDBFactory.createDataset(databasePath);
         dataset.begin(ReadWrite.READ);
         FileOutputStream os = null;
         try {
             os = new FileOutputStream(outputFile);
-            RDFDataMgr.write(os, dataset, Lang.TRIG);
+            Translator.translate(dataset, format, os);
         } finally {
             dataset.end();
             if( os != null )

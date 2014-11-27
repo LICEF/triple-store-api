@@ -7,6 +7,7 @@ package licef.tsapi;
  */
 public class Constants {
 
+    //graphs
     public static final int RDFXML      = 0;
     public static final int TURTLE      = 1;
     public static final int N_TRIPLE    = 2;
@@ -15,4 +16,8 @@ public class Constants {
     public static final int XHTML       = 5;
     public static final int RDFA        = 6;
 
+    //datasets
+    public static final int JSON_LD     = 7;
+    public static final int N_QUADS     = 8;
+    public static final int TRIG        = 9;
 }

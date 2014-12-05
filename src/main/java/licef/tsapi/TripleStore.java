@@ -12,24 +12,20 @@ import com.hp.hpl.jena.tdb.TDBFactory;
 import com.hp.hpl.jena.update.*;
 import licef.IOUtil;
 import licef.LangUtil;
+import licef.reflection.Invoker;
 import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
 import licef.tsapi.model.Tuple;
 import licef.tsapi.util.Translator;
 import licef.tsapi.vocabulary.VocUtil;
-import org.apache.jena.query.text.EntityDefinition;
-import org.apache.jena.query.text.TextDatasetFactory;
-import org.apache.jena.query.text.TextIndex;
-import org.apache.jena.riot.Lang;
+import org.apache.jena.query.text.*;
 
 import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import org.semarglproject.jena.rdf.rdfa.JenaRdfaReader;
 
@@ -50,6 +46,9 @@ public class TripleStore {
     String databasePath;
     String serverDir = ".";
     Server server;
+    Dataset dataset;
+    Hashtable<String, Dataset> datasetIndexes;
+    HashSet<TextIndex> textIndexes;
 
     public TripleStore() {
         databasePath = databaseDir + "/" + databaseName;
@@ -65,6 +64,9 @@ public class TripleStore {
             this.namespace = namespace;
         databasePath = databaseDir + "/" + databaseName;
         IOUtil.createDirectory(this.databasePath);
+        dataset = TDBFactory.createDataset(databasePath);
+        datasetIndexes = new Hashtable<String, Dataset>();
+        textIndexes = new HashSet<TextIndex>();
     }
 
     public void startServer(boolean readOnly) {
@@ -90,29 +92,19 @@ public class TripleStore {
         VocUtil.registerVocabulary(vocUri, vocClass);
     }
 
+    /***********************************/
+    /* Association with fulltext index */
+    /***********************************/
 
-    /**********************/
-    /* Dataset operations */
-    /**********************/
+    private Dataset getIndexDataset(Property[] predicatesToIndex, Object langInfo, String indexName) throws Exception {
+        String key = "default";
+        if (langInfo != null)
+            key = langInfo.toString();
+        if (indexName != null)
+            key += indexName;
+        if (datasetIndexes.containsKey(key))
+            return datasetIndexes.get(key);
 
-    public String[] getNamedGraphs() throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        dataset.begin(ReadWrite.READ) ;
-        ArrayList<String> names = new ArrayList<String>();
-        try {
-            for (Iterator it = dataset.listNames(); it.hasNext();)
-                names.add(it.next().toString());
-        }
-        finally {
-            dataset.end() ;
-        }
-        return names.toArray(new String[names.size()]);
-    }
-
-
-    /* Association with Lucene indexing */
-
-    private Dataset createIndexDataset(Property[] predicatesToIndex, Object langInfo, String indexName) throws Exception {
         EntityDefinition entDef = new EntityDefinition("uri", "text");
         for (Property p : predicatesToIndex)
             entDef.set(VocUtil.getIndexFieldProperty(p), p.asNode());
@@ -132,64 +124,119 @@ public class TripleStore {
             if (langInfo instanceof String)
                 index = TextDatasetFactory.createLuceneIndexLocalized(FSDirectory.open(dir), entDef, langInfo.toString()) ;
             else
-                index = TextDatasetFactory.createLuceneIndexMultiLingual(dir, entDef, (String[])langInfo) ;
+                index = TextDatasetFactory.createLuceneIndexMultiLingual(dir, entDef, (HashSet)langInfo) ;
         }
         else
             index = TextDatasetFactory.createLuceneIndex(FSDirectory.open(dir), entDef) ;
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        return TextDatasetFactory.create(dataset, index);
+
+
+        Dataset res = TextDatasetFactory.create(dataset, index);
+
+        datasetIndexes.put(key, res);
+        if (index instanceof TextIndexLuceneMultiLingual) {
+            for (TextIndex idx: ((TextIndexLuceneMultiLingual)index).getIndexes() )
+                textIndexes.add(idx);
+        }
+        else
+            textIndexes.add(index);
+
+        return res;
     }
+
+
+    /**************************/
+    /* Transaction management */
+    /**************************/
+
+    /**
+     * Execute a sequence of actions over dataset inside a transaction process
+     * @param invoker start method for invocation
+     * @throws Exception
+     */
+    public Object doTransaction(Invoker invoker) throws Exception {
+        Object response;
+        dataset.begin(ReadWrite.WRITE);
+        try {
+            response = invoker.invoke();
+            dataset.commit();
+            manageTextIndexes("commit");
+        }
+        finally {
+            dataset.end();
+            manageTextIndexes("end");
+            datasetIndexes.clear();
+            textIndexes.clear();
+        }
+        return response;
+    }
+
+    private void manageTextIndexes(String action) {
+        for (Iterator it = textIndexes.iterator(); it.hasNext();) {
+            TextIndex index = (TextIndex)it.next();
+            if ("commit".equals(action))
+                index.finishIndexing();
+            else
+                index.abortIndexing();
+        }
+    }
+
+    /***********/
+    /* General */
+    /***********/
+
+    public String[] getNamedGraphs() throws Exception {
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
+        ArrayList<String> names = new ArrayList<String>();
+        for (Iterator it = dataset.listNames(); it.hasNext();)
+            names.add(it.next().toString());
+        return names.toArray(new String[names.size()]);
+    }
+
 
     /********************/
     /* Querying triples */
     /********************/
 
     public Triple[] getAllTriples(String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.READ) ;
         ArrayList<Triple> triples = new ArrayList<Triple>();
-        try {
-            Model model = (_graphName == null)?
-                dataset.getDefaultModel():
-                dataset.getNamedModel(getUri(_graphName));
-            for (StmtIterator it = model.listStatements(); it.hasNext(); ) {
-                Statement stmt = it.nextStatement();
-                String subject = stmt.getSubject().getURI();
-                String predicate = stmt.getPredicate().getURI();
-                RDFNode _object = stmt.getObject();
-                String object;
-                String language = null;
-                boolean isObjectLiteral = false;
-                if (_object instanceof Literal) {
-                    language = ((Literal)_object).getLanguage();
-                    object = ((Literal)_object).getValue().toString();
-                    isObjectLiteral = true;
-                }
-                else
-                    object = _object.toString();
-                triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
+        Model model = (_graphName == null)?
+            dataset.getDefaultModel():
+            dataset.getNamedModel(getUri(_graphName));
+        for (StmtIterator it = model.listStatements(); it.hasNext(); ) {
+            Statement stmt = it.nextStatement();
+            String subject = stmt.getSubject().getURI();
+            String predicate = stmt.getPredicate().getURI();
+            RDFNode _object = stmt.getObject();
+            String object;
+            String language = null;
+            boolean isObjectLiteral = false;
+            if (_object instanceof Literal) {
+                language = ((Literal)_object).getLanguage();
+                object = ((Literal)_object).getValue().toString();
+                isObjectLiteral = true;
             }
-        }
-        finally {
-            dataset.end() ;
+            else
+                object = _object.toString();
+            triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
         }
         return triples.toArray(new Triple[triples.size()]);
     }
 
     public long getAllTriplesCount(String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.READ);
-        try {
-            Model model = (_graphName == null)?
-                    dataset.getDefaultModel():
-                    dataset.getNamedModel(getUri(_graphName));
-            return model.size();
-        }
-        finally {
-            dataset.end() ;
-        }
+        Model model = (_graphName == null)?
+                dataset.getDefaultModel():
+                dataset.getNamedModel(getUri(_graphName));
+        return model.size();
     }
 
     //s
@@ -226,48 +273,44 @@ public class TripleStore {
 
     //spo
     public Triple[] getTriplesWithSubjectPredicateObject(String subject, String predicate, String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.READ);
         ArrayList<Triple> triples = new ArrayList<Triple>();
-        try {
-            Node graph = (_graphName != null)?NodeFactory.createURI(getUri(_graphName)):NodeFactory.createURI("urn:x-arq:DefaultGraph");
-            Node s = (subject != null)?NodeFactory.createURI(subject):Node.ANY;
-            Node p = (predicate != null)?NodeFactory.createURI(predicate):Node.ANY;
-            Node o = Node.ANY;
+        Node graph = (_graphName != null)?NodeFactory.createURI(getUri(_graphName)):NodeFactory.createURI("urn:x-arq:DefaultGraph");
+        Node s = (subject != null)?NodeFactory.createURI(subject):Node.ANY;
+        Node p = (predicate != null)?NodeFactory.createURI(predicate):Node.ANY;
+        Node o = Node.ANY;
 
-            if (object != null) {
-                if (isObjectLiteral) {
-                    if (language != null && !"".equals(language))
-                        o = NodeFactory.createLiteral(object, language, false);
-                    else
-                        o = NodeFactory.createLiteral(object);
-                }
+        if (object != null) {
+            if (isObjectLiteral) {
+                if (language != null && !"".equals(language))
+                    o = NodeFactory.createLiteral(object, language, false);
                 else
-                    o = NodeFactory.createURI(object);
+                    o = NodeFactory.createLiteral(object);
             }
-
-            Iterator<Quad> quadIter = dataset.asDatasetGraph().find(graph, s, p, o) ;
-            for (; quadIter.hasNext(); ) {
-                Quad quad = quadIter.next();
-                String resSubject = quad.getSubject().toString();
-                String resPred = quad.getPredicate().toString();
-                Node _object = quad.getObject();
-                String resObj;
-                String resLanguage = null;
-                boolean resIsObjectLiteral = false;
-                if (_object.isLiteral()) {
-                    resLanguage = _object.getLiteralLanguage();
-                    resObj = _object.getLiteralValue().toString();
-                    resIsObjectLiteral = true;
-                }
-                else
-                    resObj = _object.toString();
-                triples.add(new Triple(resSubject, resPred, resObj, resIsObjectLiteral, resLanguage));
-            }
+            else
+                o = NodeFactory.createURI(object);
         }
-        finally {
-            dataset.end();
+
+        Iterator<Quad> quadIter = dataset.asDatasetGraph().find(graph, s, p, o) ;
+        for (; quadIter.hasNext(); ) {
+            Quad quad = quadIter.next();
+            String resSubject = quad.getSubject().toString();
+            String resPred = quad.getPredicate().toString();
+            Node _object = quad.getObject();
+            String resObj;
+            String resLanguage = null;
+            boolean resIsObjectLiteral = false;
+            if (_object.isLiteral()) {
+                resLanguage = _object.getLiteralLanguage();
+                resObj = _object.getLiteralValue().toString();
+                resIsObjectLiteral = true;
+            }
+            else
+                resObj = _object.toString();
+            triples.add(new Triple(resSubject, resPred, resObj, resIsObjectLiteral, resLanguage));
         }
         return triples.toArray(new Triple[triples.size()]);
     }
@@ -288,7 +331,6 @@ public class TripleStore {
      */
 
     public void loadContent(InputStream is, int format, String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
         loadContent(dataset, is, "", format, graphName);
     }
 
@@ -305,15 +347,13 @@ public class TripleStore {
      */
 
     public void loadContentWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, String indexName, int format, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
+        Dataset dataset = getIndexDataset(predicatesToIndex, langInfo, indexName);
         loadContent(dataset, is, "", format, graphName);
     }
 
 
     /* Load RDFa content */
     public void loadRDFa(RdfaApi api, RdfaFormat format, InputStream is, String baseUri, String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        
         if( api == RdfaApi.JAVA_RDFA ) {
             Class.forName("net.rootdev.javardfa.jena.RDFaReader");
             loadContent(dataset, is, baseUri, ( format == RdfaFormat.RDFA_XHTML ? Constants.XHTML : Constants.HTML ), graphName);
@@ -325,25 +365,20 @@ public class TripleStore {
     }
     
     public void loadTurtle(InputStream is, String baseUri, String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
         loadContent(dataset, is, baseUri, Constants.TURTLE, graphName);
     }
 
     //Effective load
     private void loadContent(Dataset dataset, InputStream is, String baseUri, int format, String... graphName) throws Exception {
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.WRITE);
-        try {
-            Model modelTmp = Translator.loadContent(is, baseUri, format);
-            if (_graphName != null)
-                dataset.addNamedModel(getUri(_graphName), modelTmp);
-            else
-                dataset.getDefaultModel().add(modelTmp);
-            dataset.commit();
-        }
-        finally {
-            dataset.end();
-        }
+        Model modelTmp = Translator.loadContent(is, baseUri, format);
+        if (_graphName != null)
+            dataset.addNamedModel(getUri(_graphName), modelTmp);
+        else
+            dataset.getDefaultModel().add(modelTmp);
     }
 
     /**
@@ -354,7 +389,9 @@ public class TripleStore {
      * @throws Exception
      */
     public void loadDataset(String path, int format, boolean clearFirst) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         Dataset externalDS = Translator.loadDataset(path, format);
 
         if (clearFirst) {
@@ -367,18 +404,12 @@ public class TripleStore {
             }
         }
 
-        dataset.begin(ReadWrite.WRITE);
-        try {
-            //default graph
-            dataset.getDefaultModel().add(externalDS.getDefaultModel());
-            //named graphs
-            for(Iterator it = externalDS.listNames(); it.hasNext();) {
-                String name = (String)it.next();
-                dataset.addNamedModel(name, externalDS.getNamedModel(name));
-            }
-            dataset.commit();
-        } finally {
-            dataset.end();
+        //default graph
+        dataset.getDefaultModel().add(externalDS.getDefaultModel());
+        //named graphs
+        for(Iterator it = externalDS.listNames(); it.hasNext();) {
+            String name = (String)it.next();
+            dataset.addNamedModel(name, externalDS.getNamedModel(name));
         }
     }
 
@@ -393,7 +424,6 @@ public class TripleStore {
     }
 
     public void insertTriples(List<Triple> triples, String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
         insertTriples(dataset, triples, graphName);
     }
 
@@ -414,42 +444,37 @@ public class TripleStore {
     }
 
     public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
-        insertTriples(dataset, triples, graphName);
+        Dataset ids = getIndexDataset(predicatesToIndex, langInfo, indexName);
+        insertTriples(ids, triples, graphName);
     }
 
     // Effective insert
     private void insertTriples(Dataset dataset, List<Triple> triples, String... graphName) throws Exception {
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.WRITE) ;
-        try {
-            Model model = (_graphName == null)?
-                    dataset.getDefaultModel():
-                    ModelFactory.createDefaultModel();
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
 
-            for (Triple triple : triples) {
-                Property p = ResourceFactory.createProperty(triple.getPredicate());
-                if (triple.isObjectLiteral()) {
-                    if (triple.getLanguage() != null)
-                        model.createResource(triple.getSubject()).addProperty(p,
-                                model.createLiteral(triple.getObject(), triple.getLanguage()));
-                    else
-                        model.createResource(triple.getSubject()).addProperty(p,
-                                model.createLiteral(triple.getObject()));
-                }
+        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        Model model = (_graphName == null)?
+                dataset.getDefaultModel():
+                ModelFactory.createDefaultModel();
+
+        for (Triple triple : triples) {
+            Property p = ResourceFactory.createProperty(triple.getPredicate());
+            if (triple.isObjectLiteral()) {
+                if (triple.getLanguage() != null)
+                    model.createResource(triple.getSubject()).addProperty(p,
+                            model.createLiteral(triple.getObject(), triple.getLanguage()));
                 else
                     model.createResource(triple.getSubject()).addProperty(p,
-                            model.createResource(triple.getObject()));
+                            model.createLiteral(triple.getObject()));
             }
-
-            if (_graphName != null)
-                dataset.addNamedModel(getUri(_graphName), model);
-
-            dataset.commit();
+            else
+                model.createResource(triple.getSubject()).addProperty(p,
+                        model.createResource(triple.getObject()));
         }
-        finally {
-            dataset.end();
-        }
+
+        if (_graphName != null)
+            dataset.addNamedModel(getUri(_graphName), model);
     }
 
     /********************/
@@ -457,7 +482,6 @@ public class TripleStore {
     /********************/
 
     public void clear(String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
         clear(dataset, graphName);
     }
 
@@ -473,24 +497,20 @@ public class TripleStore {
      */
 
     public void clearWithTextIndexing(Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, indexName);
+        Dataset dataset = getIndexDataset(indexedPredicates, langInfo, indexName);
         clear(dataset, graphName);
     }
 
     // Effective clear
     private void clear(Dataset dataset, String... graphName) throws Exception {
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.WRITE);
-        try {
-            if (_graphName == null)
-                dataset.getDefaultModel().removeAll();
-            else
-                dataset.removeNamedModel(getUri(_graphName));
-            dataset.commit() ;
-        }
-        finally {
-            dataset.end();
-        }
+        if (_graphName == null)
+            dataset.getDefaultModel().removeAll();
+        else
+            dataset.removeNamedModel(getUri(_graphName));
     }
 
     public void removeTriple(Triple triple, String... graphName) throws Exception {
@@ -500,7 +520,6 @@ public class TripleStore {
     }
 
     public void removeTriples(List<Triple> triples, String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
         removeTriples(dataset, triples, graphName);
     }
 
@@ -522,38 +541,33 @@ public class TripleStore {
     }
 
     public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(indexedPredicates, langInfo, indexName);
-        removeTriples(dataset, triples, graphName);
+        Dataset ids = getIndexDataset(indexedPredicates, langInfo, indexName);
+        removeTriples(ids, triples, graphName);
     }
 
     // Effective remove
     private void removeTriples(Dataset dataset, List<Triple> triples, String... graphName) throws Exception {
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.WRITE) ;
-        try {
-            Model model = (_graphName == null)?
-                    dataset.getDefaultModel():
-                    dataset.getNamedModel(getUri(_graphName));
+        Model model = (_graphName == null)?
+                dataset.getDefaultModel():
+                dataset.getNamedModel(getUri(_graphName));
 
-            for (Triple triple : triples) {
-                Resource subject = ResourceFactory.createResource(triple.getSubject());
-                Property predicate = ResourceFactory.createProperty(triple.getPredicate());
-                RDFNode object;
-                if (triple.isObjectLiteral()) {
-                    if (triple.getLanguage() != null)
-                        object = ResourceFactory.createLangLiteral(triple.getObject(), triple.getLanguage());
-                    else
-                        object = ResourceFactory.createPlainLiteral(triple.getObject());
-                }
+        for (Triple triple : triples) {
+            Resource subject = ResourceFactory.createResource(triple.getSubject());
+            Property predicate = ResourceFactory.createProperty(triple.getPredicate());
+            RDFNode object;
+            if (triple.isObjectLiteral()) {
+                if (triple.getLanguage() != null)
+                    object = ResourceFactory.createLangLiteral(triple.getObject(), triple.getLanguage());
                 else
-                    object = ResourceFactory.createResource(triple.getObject());
-                model.remove(subject, predicate, object);
+                    object = ResourceFactory.createPlainLiteral(triple.getObject());
             }
-
-            dataset.commit();
-        }
-        finally {
-            dataset.end();
+            else
+                object = ResourceFactory.createResource(triple.getObject());
+            model.remove(subject, predicate, object);
         }
     }
 
@@ -564,7 +578,6 @@ public class TripleStore {
     /**************************/
 
     public Tuple[] sparqlSelect(String queryString) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
         return sparqlSelect(dataset, queryString);
     }
 
@@ -580,12 +593,14 @@ public class TripleStore {
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
     public Tuple[] sparqlSelectWithTextIndexing(String queryString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
+        Dataset dataset = getIndexDataset(predicatesToIndex, langInfo, indexName);
         return sparqlSelect(dataset, queryString);
     }
 
     public Tuple[] sparqlSelect(Dataset dataset, String queryString) throws Exception {
-        dataset.begin(ReadWrite.READ);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         ArrayList<Tuple> tuples = new ArrayList<Tuple>();
         Query query = QueryFactory.create(queryString);
         QueryExecution qexec = QueryExecutionFactory.create(query, dataset);
@@ -614,14 +629,14 @@ public class TripleStore {
             }
         } finally {
             qexec.close();
-            dataset.end();
         }
         return tuples.toArray(new Tuple[tuples.size()]);
     }
 
     public boolean sparqlAsk(String queryString) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        dataset.begin(ReadWrite.READ);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         Query query = QueryFactory.create(queryString);
         QueryExecution qexec = QueryExecutionFactory.create(query, dataset);
         try {
@@ -629,76 +644,64 @@ public class TripleStore {
         }
         finally {
             qexec.close() ;
-            dataset.end();
         }
     }
 
     public Triple[] sparqlDescribe(String queryString) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        dataset.begin(ReadWrite.WRITE);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         ArrayList<Triple> triples = new ArrayList<Triple>();
         Query query = QueryFactory.create(queryString);
         QueryExecution qexec = QueryExecutionFactory.create(query, dataset);
-        try {
-
-            for (Iterator it = qexec.execDescribeTriples(); it.hasNext(); ) {
-                com.hp.hpl.jena.graph.Triple triple = (com.hp.hpl.jena.graph.Triple)it.next();
-                String subject = triple.getSubject().getURI();
-                String predicate = triple.getPredicate().getURI();
-                com.hp.hpl.jena.graph.Node _object = triple.getObject();
-                String object;
-                String language = null;
-                boolean isObjectLiteral = false;
-                if (_object instanceof Node_Literal) {
-                    language = _object.getLiteralLanguage();
-                    object = _object.getLiteralValue().toString();
-                    isObjectLiteral = true;
-                }
-                else
-                    object = _object.getURI();
-                triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
+        for (Iterator it = qexec.execDescribeTriples(); it.hasNext(); ) {
+            com.hp.hpl.jena.graph.Triple triple = (com.hp.hpl.jena.graph.Triple)it.next();
+            String subject = triple.getSubject().getURI();
+            String predicate = triple.getPredicate().getURI();
+            com.hp.hpl.jena.graph.Node _object = triple.getObject();
+            String object;
+            String language = null;
+            boolean isObjectLiteral = false;
+            if (_object instanceof Node_Literal) {
+                language = _object.getLiteralLanguage();
+                object = _object.getLiteralValue().toString();
+                isObjectLiteral = true;
             }
-        }
-        finally {
-            dataset.end() ;
+            else
+                object = _object.getURI();
+            triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
         }
         return triples.toArray(new Triple[triples.size()]);
     }
 
     public Triple[] sparqlConstruct(String queryString) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        dataset.begin(ReadWrite.WRITE);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         ArrayList<Triple> triples = new ArrayList<Triple>();
         Query query = QueryFactory.create(queryString);
         QueryExecution qexec = QueryExecutionFactory.create(query, dataset);
-        try {
-
-            for (Iterator it = qexec.execConstructTriples(); it.hasNext(); ) {
-                com.hp.hpl.jena.graph.Triple triple = (com.hp.hpl.jena.graph.Triple)it.next();
-                String subject = triple.getSubject().getURI();
-                String predicate = triple.getPredicate().getURI();
-                com.hp.hpl.jena.graph.Node _object = triple.getObject();
-                String object;
-                String language = null;
-                boolean isObjectLiteral = false;
-                if (_object instanceof Node_Literal) {
-                    language = _object.getLiteralLanguage();
-                    object = _object.getLiteralValue().toString();
-                    isObjectLiteral = true;
-                }
-                else
-                    object = _object.getURI();
-                triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
+        for (Iterator it = qexec.execConstructTriples(); it.hasNext(); ) {
+            com.hp.hpl.jena.graph.Triple triple = (com.hp.hpl.jena.graph.Triple)it.next();
+            String subject = triple.getSubject().getURI();
+            String predicate = triple.getPredicate().getURI();
+            com.hp.hpl.jena.graph.Node _object = triple.getObject();
+            String object;
+            String language = null;
+            boolean isObjectLiteral = false;
+            if (_object instanceof Node_Literal) {
+                language = _object.getLiteralLanguage();
+                object = _object.getLiteralValue().toString();
+                isObjectLiteral = true;
             }
-        }
-        finally {
-            dataset.end() ;
+            else
+                object = _object.getURI();
+            triples.add(new Triple(subject, predicate, object, isObjectLiteral, language));
         }
         return triples.toArray(new Triple[triples.size()]);
     }
 
     public void sparqlUpdate(String updateString) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
         sparqlUpdate(dataset, updateString);
     }
 
@@ -715,27 +718,20 @@ public class TripleStore {
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
     public void sparqlUpdateWithTextIndexing(String updateString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
-        Dataset dataset = createIndexDataset(predicatesToIndex, langInfo, indexName);
+        Dataset dataset = getIndexDataset(predicatesToIndex, langInfo, indexName);
         sparqlUpdate(dataset, updateString);
     }
 
     //Effective sparqlUpdate
     private void sparqlUpdate(Dataset dataset, String updateString) throws Exception {
-        dataset.begin(ReadWrite.WRITE) ;
-        try {
-            GraphStore graphStore = GraphStoreFactory.create(dataset);
-            UpdateRequest request = UpdateFactory.create(updateString);
-            UpdateProcessor proc = UpdateExecutionFactory.create(request, graphStore);
-            proc.execute();
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
 
-            dataset.commit();
-        }
-        finally {
-            dataset.end();
-        }
+        GraphStore graphStore = GraphStoreFactory.create(dataset);
+        UpdateRequest request = UpdateFactory.create(updateString);
+        UpdateProcessor proc = UpdateExecutionFactory.create(request, graphStore);
+        proc.execute();
     }
-
-
 
 
     /*************/
@@ -743,20 +739,15 @@ public class TripleStore {
     /*************/
 
     public void doInference(String graphName, String graphSchema) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        dataset.begin(ReadWrite.WRITE) ;
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
 
         Model modelSchema = dataset.getNamedModel(getUri(graphSchema));
         Model modelData = dataset.getNamedModel(getUri(graphName));
-        try {
-            Reasoner reasoner = ReasonerRegistry.getOWLMicroReasoner();
-            reasoner = reasoner.bindSchema(modelSchema);
-            InfModel infModel = ModelFactory.createInfModel(reasoner, modelData);
-            modelData.add(infModel.listStatements());
-            dataset.commit();
-        } finally {
-            dataset.end();
-        }
+        Reasoner reasoner = ReasonerRegistry.getOWLMicroReasoner();
+        reasoner = reasoner.bindSchema(modelSchema);
+        InfModel infModel = ModelFactory.createInfModel(reasoner, modelData);
+        modelData.add(infModel.listStatements());
     }
 
 
@@ -828,9 +819,10 @@ public class TripleStore {
      * @param format integer constant
      */
     public void dump(String outputFile, int format, String... graphName) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         String _graphName = (graphName.length != 0)?graphName[0]:null;
-        dataset.begin(ReadWrite.WRITE);
         FileOutputStream os = null;
         try {
             os = new FileOutputStream(outputFile);
@@ -839,7 +831,6 @@ public class TripleStore {
                     dataset.getNamedModel(getUri(_graphName));
             Translator.translate(model, format, os);
         } finally {
-            dataset.end();
             if( os != null )
                 os.close();
         }
@@ -850,14 +841,14 @@ public class TripleStore {
      * @param outputFile
      */
     public void dumpDataset(String outputFile, int format) throws Exception {
-        Dataset dataset = TDBFactory.createDataset(databasePath);
-        dataset.begin(ReadWrite.READ);
+        if (!dataset.isInTransaction())
+            throw new Exception("Cannot perform action on triple store without transaction.");
+
         FileOutputStream os = null;
         try {
             os = new FileOutputStream(outputFile);
             Translator.translate(dataset, format, os);
         } finally {
-            dataset.end();
             if( os != null )
                 os.close();
         }

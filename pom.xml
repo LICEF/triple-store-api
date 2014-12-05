@@ -4,7 +4,7 @@
     <artifactId>licef-tsapi</artifactId>
     <packaging>jar</packaging>
     <name>Licef triple store API</name>
-    <version>0.1.7</version>
+    <version>0.2.0</version>
 
     <build>
         <resources>
@@ -84,11 +84,11 @@
         </repository>
     </repositories>
 
-    <dependencies>        
+    <dependencies>
         <dependency>
             <groupId>licef</groupId>
             <artifactId>licef-utils</artifactId>
-            <version>0.11.1</version>
+            <version>0.12.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>
@@ -109,7 +109,7 @@
         <dependency>
             <groupId>licef</groupId>
             <artifactId>jena-text</artifactId>
-            <version>1.1.1-ml</version>
+            <version>1.1.1-ml0.2</version>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>

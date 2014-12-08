@@ -153,7 +153,7 @@ public class TripleStore {
      * @param invoker start method for invocation
      * @throws Exception
      */
-    public Object doTransaction(Invoker invoker) throws Exception {
+    public Object transactionalCall(Invoker invoker) throws Exception {
         Object response;
         dataset.begin(ReadWrite.WRITE);
         try {

@@ -212,10 +212,10 @@ public class Test {
 
             //Simili-closure
             Invoker inv = new Invoker(null, "Test", "transactionCall", new Object[]{});
-            ts.doTransaction(inv);
+            ts.transactionalCall(inv);
 
             inv = new Invoker(null, "Test", "transactionCall2", new Object[]{});
-            ts.doTransaction(inv);
+            ts.transactionalCall(inv);
 
         } catch (Exception e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.

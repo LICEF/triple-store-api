@@ -40,7 +40,7 @@ public class Test {
 //            String dbPath = "e:/proeaf/database";
             String serverPath = "e:/zzz/tsapiTest2";
             ts = new TripleStore(dbPath, serverPath, null);
-//        ts.startServer();
+//        ts.startServer(true);
 
 
 //            ts.loadContent(new FileInputStream("e:/zzz/tsapiTest/output.ttl"), Constants.TURTLE, "vv");
@@ -212,10 +212,10 @@ public class Test {
 
             //Simili-closure
             Invoker inv = new Invoker(null, "Test", "transactionCall", new Object[]{});
-            ts.transactionalCall(inv);
+            ts.transactionalCall(inv, TripleStore.WRITE_MODE);
 
             inv = new Invoker(null, "Test", "transactionCall2", new Object[]{});
-            ts.transactionalCall(inv);
+            ts.transactionalCall(inv, TripleStore.WRITE_MODE);
 
         } catch (Exception e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
@@ -351,13 +351,12 @@ public class Test {
 //        int j =  5/i;
 //        ts.interruptTransaction();
 
-        /*Tuple[] ttu = ts.sparqlSelect(q);
+        Tuple[] ttu = ts.sparqlSelect(q);
 //        Tuple[] ttu = ts.sparqlSelectWithTextIndexing(q, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
         System.out.println("results: = " );
         for (Tuple ssu : ttu) {
             System.out.println("n = " + ssu);
         }
-*/
 //        ts.dumpDataset("e:/zzz/tsapiTest/output.trig", Constants.TRIG);
     }
 

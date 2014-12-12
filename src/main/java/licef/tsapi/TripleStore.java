@@ -17,7 +17,6 @@ import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
 import licef.tsapi.model.Tuple;
 import licef.tsapi.util.Translator;
-import licef.tsapi.vocabulary.SKOS;
 import licef.tsapi.vocabulary.VocUtil;
 import org.apache.jena.query.text.EntityDefinition;
 import org.apache.jena.query.text.TextDatasetFactory;

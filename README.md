@@ -43,4 +43,4 @@ String displayResult() {
 
 
 ```
-Furthermore, transaction calls are multi-thread safe and independant. You can have only one active write transaction but many others read transactions at the same time.
+Furthermore, transactions are multi-thread safe. You can have only one active write transaction but many others read transactions at the same time. All of them are independents.

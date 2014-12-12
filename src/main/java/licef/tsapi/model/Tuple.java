@@ -26,6 +26,10 @@ public class Tuple {
         return varNames;
     }
 
+    public boolean containsVar(String var) {
+        return values.containsKey(var);
+    }
+
     public NodeValue getValue(String var) {
         return values.get(var);
     }

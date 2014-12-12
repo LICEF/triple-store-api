@@ -16,10 +16,11 @@ tripleStore.startServer(true); //false for accept write access on endpoint (be c
 
 3) interact within the Jena API
 
-The present triple-store-api interact with Jena in transactional mode. It's let you to call a sequence of TripleStore methods from the execution stack.
-To do this, a simili-closure process is provided with function `transactionalCall` which take the start function to call. Hence a commit (or rollback if error) will be done at the end of the call.
+The present triple-store-api interact with Jena in transactional mode. It lets you to call a sequence of TripleStore methods from the execution stack.
+To do this, a simili-closure process is provided with the function `transactionalCall` which take the initial function to call. A commit (or rollback if error) will be done at the end of the call.
+The following `test` method starts the transaction:
 ```
-void initMethod() {
+void test() {
     //creation of the invocation method
     Invoker inv = new Invoker(this, "current.package", "writeTriple", new Object[]{ "Hello World" } );
     //start transaction in write mode because at least one write access

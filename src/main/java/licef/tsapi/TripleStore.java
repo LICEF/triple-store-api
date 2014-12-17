@@ -187,13 +187,18 @@ public class TripleStore {
             textIndexes.remove(thread);
         }
 
-        //clear indexDatasets
+        //clear indexDataset
+        String key = null;
         for (Iterator it = datasetIndexes.keySet().iterator(); it.hasNext();) {
-            String key = (String)it.next();
-            if (key.endsWith(thread)) {
-                Dataset ds = datasetIndexes.remove(key);
-                ds.end();
+            String _key = (String)it.next();
+            if (_key.endsWith(thread)) {
+                key = _key;
+                break;
             }
+        }
+        if (key != null) {
+            Dataset ds = datasetIndexes.remove(key);
+            ds.end();
         }
     }
 
@@ -503,6 +508,7 @@ public class TripleStore {
 
     public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
         Dataset ids = getIndexDataset(predicatesToIndex, langInfo, indexName);
+        Thread.sleep(20000);
         insertTriples(ids, triples, graphName);
     }
 

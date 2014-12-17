@@ -147,7 +147,10 @@ public class TripleStore {
         else
             index = TextDatasetFactory.createLuceneIndex(FSDirectory.open(dir), entDef) ;
 
+        //for possible retrieve index in query execution (ex sparqlSelect)
+        TextDatasetFactory.setCtxtIndex(index);
 
+        //indexed dataset creation
         Dataset res = TextDatasetFactory.create(getDataset(), index);
 
         //keep dataset reference
@@ -185,6 +188,9 @@ public class TripleStore {
             }
             //clear indexes
             textIndexes.remove(thread);
+
+            //clear external reference
+            TextDatasetFactory.clearCtxtIndex();
         }
 
         //clear indexDataset
@@ -663,11 +669,6 @@ public class TripleStore {
     public Tuple[] sparqlSelect(Dataset dataset, String queryString) throws Exception {
         if (!dataset.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
-
-        //if indexed dataset, ctxt is set to null in Jena, so we must retrieve index in query execution
-        if (dataset.asDatasetGraph() instanceof DatasetGraphText)
-            TextDatasetFactory.setCtxtIndex(
-                    (TextIndex) dataset.getContext().get(TextQuery.textIndex));
 
         ArrayList<Tuple> tuples = new ArrayList<Tuple>();
         Query query = QueryFactory.create(queryString);

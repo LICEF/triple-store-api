@@ -111,8 +111,12 @@ public class TripleStore {
     private Dataset getIndexDataset(Property[] predicatesToIndex, Object langInfo, String indexName) throws Exception {
         String thread = Thread.currentThread().toString();
         String key = "default";
-        if (langInfo != null)
-            key = langInfo.toString();
+        if (langInfo != null) {
+            Object li = langInfo;
+            if (langInfo instanceof String[]) //to ensure uniqueness
+                li = new HashSet(Arrays.asList((String[])langInfo));
+            key = li.toString();
+        }
         if (indexName != null)
             key += indexName;
         key += thread;
@@ -138,7 +142,7 @@ public class TripleStore {
             if (langInfo instanceof String)
                 index = TextDatasetFactory.createLuceneIndexLocalized(FSDirectory.open(dir), entDef, langInfo.toString()) ;
             else
-                index = TextDatasetFactory.createLuceneIndexMultiLingual(dir, entDef, (HashSet)langInfo) ;
+                index = TextDatasetFactory.createLuceneIndexMultiLingual(dir, entDef, (String[])langInfo) ;
         }
         else
             index = TextDatasetFactory.createLuceneIndex(FSDirectory.open(dir), entDef) ;

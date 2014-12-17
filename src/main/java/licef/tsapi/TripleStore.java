@@ -395,19 +395,19 @@ public class TripleStore {
         loadContent(getDataset(), is, "", format, graphName);
     }
 
-    /* with Lucene indexing */
+    /* with Lucene index */
 
     /**
      * Same args of precedent function + :
      * @param predicatesToIndex array of properties to index
      * @param langInfo formats are :
-     *                 - null for standard indexing
-     *                 - langstring for localized indexing (ex: "fr")
-     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     *                 - null for standard index
+     *                 - langstring for localized index (ex: "fr")
+     *                 - array of langstrings for multi-lingual index (ex: ["fr", "en"])
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
 
-    public void loadContentWithTextIndexing(InputStream is, Property[] predicatesToIndex, Object langInfo, String indexName, int format, String... graphName) throws Exception {
+    public void loadContentWithTextIndex(InputStream is, Property[] predicatesToIndex, Object langInfo, String indexName, int format, String... graphName) throws Exception {
         Dataset dataset = getIndexDataset(predicatesToIndex, langInfo, indexName);
         loadContent(dataset, is, "", format, graphName);
     }
@@ -490,23 +490,23 @@ public class TripleStore {
         insertTriples(getDataset(), triples, graphName);
     }
 
-    /* with Lucene indexing */
+    /* with Lucene index */
 
     /**
      * @param predicatesToIndex array of properties to index
      * @param langInfo formats are :
-     *                 - null for standard indexing
-     *                 - langstring for localized indexing (ex: "fr")
-     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     *                 - null for standard index
+     *                 - langstring for localized index (ex: "fr")
+     *                 - array of langstrings for multi-lingual index (ex: ["fr", "en"])
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
-    public void insertTripleWithTextIndexing(Triple triple, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
+    public void insertTripleWithTextIndex(Triple triple, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
-        insertTriplesWithTextIndexing(triples, predicatesToIndex, langInfo, indexName, graphName);
+        insertTriplesWithTextIndex(triples, predicatesToIndex, langInfo, indexName, graphName);
     }
 
-    public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
+    public void insertTriplesWithTextIndex(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
         Dataset ids = getIndexDataset(predicatesToIndex, langInfo, indexName);
         insertTriples(ids, triples, graphName);
     }
@@ -548,18 +548,18 @@ public class TripleStore {
         clear(getDataset(), graphName);
     }
 
-    /* with Lucene indexing */
+    /* with Lucene index */
 
     /**
      * @param indexedPredicates array of indexed properties
      * @param langInfo formats are :
-     *                 - null for standard indexing
-     *                 - langstring for localized indexing (ex: "fr")
-     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     *                 - null for standard index
+     *                 - langstring for localized index (ex: "fr")
+     *                 - array of langstrings for multi-lingual index (ex: ["fr", "en"])
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
 
-    public void clearWithTextIndexing(Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
+    public void clearWithTextIndex(Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
         Dataset dataset = getIndexDataset(indexedPredicates, langInfo, indexName);
         clear(dataset, graphName);
     }
@@ -586,24 +586,24 @@ public class TripleStore {
         removeTriples(getDataset(), triples, graphName);
     }
 
-    /* with Lucene indexing */
+    /* with Lucene index */
 
     /**
      * @param indexedPredicates array of properties to index
      * @param langInfo formats are :
-     *                 - null for standard indexing
-     *                 - langstring for localized indexing (ex: "fr")
-     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     *                 - null for standard index
+     *                 - langstring for localized index (ex: "fr")
+     *                 - array of langstrings for multi-lingual index (ex: ["fr", "en"])
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
 
-    public void removeTripleWithTextIndexing(Triple triple, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
+    public void removeTripleWithTextIndex(Triple triple, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
-        removeTriplesWithTextIndexing(triples, indexedPredicates, langInfo, indexName, graphName);
+        removeTriplesWithTextIndex(triples, indexedPredicates, langInfo, indexName, graphName);
     }
 
-    public void removeTriplesWithTextIndexing(List<Triple> triples, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
+    public void removeTriplesWithTextIndex(List<Triple> triples, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
         Dataset ids = getIndexDataset(indexedPredicates, langInfo, indexName);
         removeTriples(ids, triples, graphName);
     }
@@ -650,12 +650,12 @@ public class TripleStore {
      * @param queryString
      * @param predicatesToIndex
      * @param langInfo formats are :
-     *                 - null for standard indexing
-     *                 - langstring for localized indexing (ex: "fr")
-     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     *                 - null for standard index
+     *                 - langstring for localized index (ex: "fr")
+     *                 - array of langstrings for multi-lingual index (ex: ["fr", "en"])
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
-    public Tuple[] sparqlSelectWithTextIndexing(String queryString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
+    public Tuple[] sparqlSelectWithTextIndex(String queryString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
         Dataset dataset = getIndexDataset(predicatesToIndex, langInfo, indexName);
         return sparqlSelect(dataset, queryString);
     }
@@ -783,12 +783,12 @@ public class TripleStore {
      * @param updateString
      * @param predicatesToIndex
      * @param langInfo formats are :
-     *                 - null for standard indexing
-     *                 - langstring for localized indexing (ex: "fr")
-     *                 - array of langstrings for multi-lingual indexing (ex: ["fr", "en"])
+     *                 - null for standard index
+     *                 - langstring for localized index (ex: "fr")
+     *                 - array of langstrings for multi-lingual index (ex: ["fr", "en"])
      * @param indexName if not null, separate lucene index is used with name indexName, "default" otherwise
      */
-    public void sparqlUpdateWithTextIndexing(String updateString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
+    public void sparqlUpdateWithTextIndex(String updateString, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
         Dataset dataset = getIndexDataset(predicatesToIndex, langInfo, indexName);
         sparqlUpdate(dataset, updateString);
     }

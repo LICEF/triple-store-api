@@ -211,11 +211,14 @@ public class Test {
 
 
             //Simili-closure
-            Invoker inv = new Invoker(null, "Test", "transactionCall", new Object[]{});
+//            Invoker inv = new Invoker(null, "Test", "transactionCall", new Object[]{});
+//            ts.transactionalCall(inv, TripleStore.WRITE_MODE);
+
+            Invoker inv = new Invoker(null, "Test", "transactionCall2", new Object[]{});
+//            ts.transactionalCall(inv);
             ts.transactionalCall(inv, TripleStore.WRITE_MODE);
 
-            inv = new Invoker(null, "Test", "transactionCall2", new Object[]{});
-            ts.transactionalCall(inv, TripleStore.WRITE_MODE);
+//            transactionCall2();
 
         } catch (Exception e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
@@ -292,7 +295,7 @@ public class Test {
     static Property[] indexPredicatesMain = new Property[]{SKOS.prefLabel, DCTERMS.title};
     static Property[] indexPredicatesVoc = new Property[]{SKOS.prefLabel};
 
-    static HashSet languages = new HashSet(Arrays.asList(new String[]{"fr", "en"}));
+    static String[] languages = new String[]{"en", "fr"};
 
     public static void transactionCall() throws Exception {
 
@@ -326,17 +329,17 @@ public class Test {
 //        int i = 0;
 //        int j =  5/i;
 
-        ts.insertTriplesWithTextIndexing(l1, indexPredicatesMain, languages, null);
+        ts.insertTriplesWithTextIndex(l1, indexPredicatesMain, languages, null);
 
-        ts.insertTriplesWithTextIndexing(l2, indexPredicatesMain, languages, null);
+        ts.insertTriplesWithTextIndex(l2, indexPredicatesMain, languages, null);
 //        int i = 0;
 //        i =  5/i;
 
-        ts.insertTriplesWithTextIndexing(l3, indexPredicatesMain, languages, null);
+        ts.insertTriplesWithTextIndex(l3, indexPredicatesMain, languages, null);
 
-        ts.removeTriplesWithTextIndexing(l1, indexPredicatesMain, languages, null);
-        ts.removeTriplesWithTextIndexing(l2, indexPredicatesMain, languages, null);
-        ts.removeTriplesWithTextIndexing(l3, indexPredicatesMain, languages, null);
+        ts.removeTriplesWithTextIndex(l1, indexPredicatesMain, languages, null);
+        ts.removeTriplesWithTextIndex(l2, indexPredicatesMain, languages, null);
+        ts.removeTriplesWithTextIndex(l3, indexPredicatesMain, languages, null);
 
 
 //        ts.insertTriplesWithTextIndexing(l1, indexPredicatesMain, "en", null);
@@ -351,8 +354,8 @@ public class Test {
 //        int j =  5/i;
 //        ts.interruptTransaction();
 
-        Tuple[] ttu = ts.sparqlSelect(q);
-//        Tuple[] ttu = ts.sparqlSelectWithTextIndexing(q, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
+//        Tuple[] ttu = ts.sparqlSelect(q);
+        Tuple[] ttu = ts.sparqlSelectWithTextIndex(q, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
         System.out.println("results: = " );
         for (Tuple ssu : ttu) {
             System.out.println("n = " + ssu);
@@ -363,32 +366,34 @@ public class Test {
 
     public static void transactionCall2() throws Exception {
         System.out.println("\n\nTRANSAC 2");
-        String q = "SELECT * " +
-                "WHERE { " +
-                "?s ?p ?o" +
+        String q = "PREFIX text: <http://jena.apache.org/text#> \n" +
+                "PREFIX skos: <http://www.w3.org/2004/02/skos/core#> \n" +
+                "SELECT * \n" +
+                "WHERE { \n" +
+                "?uri text:query ( skos:prefLabel \"salut\" \"lang:fr\" ) .\n" +
+                "?uri skos:prefLabel ?label .\n" +
                 "} ";
 
-
         ArrayList<Triple> l1 = new ArrayList<Triple>();
-        Triple t0 = new Triple("http://ress1ex2", SKOS.prefLabel, "bonjour les amis", "fr");
+        Triple t0 = new Triple("http://res1", SKOS.prefLabel, "salut les amis", "fr-CA");
+        Triple t1 = new Triple("http://res2", SKOS.prefLabel, "j'invite des amis", "fra");
+        Triple t2 = new Triple("http://res3", SKOS.prefLabel, "chaussure");
         l1.add(t0);
+        l1.add(t1);
+        l1.add(t2);
 
-        ArrayList<Triple> l2 = new ArrayList<Triple>();
-        t0 = new Triple("http://resource2ex2", SKOS.prefLabel, "beautiful", "en");
-        l2.add(t0);
+//        ts.insertTriples(l1);
+//        ts.insertTriplesWithTextIndex(l1, indexPredicatesVoc, languages, null);
 
+//        Tuple[] ttu = ts.sparqlSelect(q);
 
-
-        ts.insertTriplesWithTextIndexing(l1, indexPredicatesVoc, languages, "voc");
-        ts.insertTriplesWithTextIndexing(l2, indexPredicatesVoc, languages, "voc");
-        ts.removeTriplesWithTextIndexing(l2, indexPredicatesVoc, languages, "voc");
-
-        Tuple[] ttu = ts.sparqlSelect(q);
-//        Tuple[] ttu = ts.sparqlSelectWithTextIndexing(q, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
+        Tuple[] ttu = ts.sparqlSelectWithTextIndex(q, indexPredicatesVoc, languages, null);
         System.out.println("results: = " );
         for (Tuple ssu : ttu) {
             System.out.println("n = " + ssu);
         }
+
+
 
     }
 }

@@ -508,7 +508,6 @@ public class TripleStore {
 
     public void insertTriplesWithTextIndexing(List<Triple> triples, Property[] predicatesToIndex, Object langInfo, String indexName, String... graphName) throws Exception {
         Dataset ids = getIndexDataset(predicatesToIndex, langInfo, indexName);
-        Thread.sleep(20000);
         insertTriples(ids, triples, graphName);
     }
 

@@ -237,8 +237,10 @@ public class TripleStore {
             manageIndexes("commit");
         }
         finally {
-            ds.end();
-            manageIndexes("end");
+            if (ds.isInTransaction()) {
+                ds.end();
+                manageIndexes("end");
+            }
         }
         return response;
     }

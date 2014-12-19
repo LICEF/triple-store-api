@@ -271,7 +271,7 @@ public class TripleStore {
         if (!ds.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         ArrayList<Triple> triples = new ArrayList<Triple>();
         Model model = (_graphName == null)?
                 ds.getDefaultModel():
@@ -301,11 +301,30 @@ public class TripleStore {
         if (!ds.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         Model model = (_graphName == null)?
                 ds.getDefaultModel():
                 ds.getNamedModel(getUri(_graphName));
         return model.size();
+    }
+
+    /**
+     * Execute Sparql query in arg to retrieve triples
+     * @param queryString with ?s ?p ?o as sparql result vars
+     * @throws Exception
+     */
+    public Triple[] getTriplesInSparql(String queryString) throws Exception {
+        Tuple[] tuples = sparqlSelect(queryString);
+        Triple[] triples = new Triple[ tuples.length ];
+        for (int i = 0; i < tuples.length; i++) {
+            Tuple tuple = tuples[i];
+            NodeValue object = tuple.getValue("o");
+            triples[i] = new Triple(tuple.getValue("s").getContent(),
+                    tuple.getValue("p").getContent(),
+                    object.getContent(), object.isLiteral(), object.getLanguage());
+        }
+
+        return triples;
     }
 
     //s
@@ -351,7 +370,7 @@ public class TripleStore {
         if (!ds.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         ArrayList<Triple> triples = new ArrayList<Triple>();
         Node graph = (_graphName != null)?NodeFactory.createURI(getUri(_graphName)):NodeFactory.createURI("urn:x-arq:DefaultGraph");
         Node s = (subject != null)?NodeFactory.createURI(subject):Node.ANY;
@@ -449,7 +468,7 @@ public class TripleStore {
         if (!dataset.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         Model modelTmp = Translator.loadContent(is, baseUri, format);
         if (_graphName != null)
             dataset.addNamedModel(getUri(_graphName), modelTmp);
@@ -530,7 +549,7 @@ public class TripleStore {
         if (!dataset.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         Model model = (_graphName == null)?
                 dataset.getDefaultModel():
                 ModelFactory.createDefaultModel();
@@ -583,7 +602,7 @@ public class TripleStore {
         if (!dataset.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         if (_graphName == null)
             dataset.getDefaultModel().removeAll();
         else
@@ -627,7 +646,7 @@ public class TripleStore {
         if (!dataset.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         Model model = (_graphName == null)?
                 dataset.getDefaultModel():
                 dataset.getNamedModel(getUri(_graphName));
@@ -907,7 +926,7 @@ public class TripleStore {
         if (!ds.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
-        String _graphName = (graphName.length != 0)?graphName[0]:null;
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         FileOutputStream os = null;
         try {
             os = new FileOutputStream(outputFile);

@@ -322,6 +322,11 @@ public class TripleStore {
         return getTriplesWithSubjectPredicateObject(null, predicate, null, isObjectLiteral, null, graphName);
     }
 
+    //o
+    public Triple[] getTriplesWithObject(String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
+        return getTriplesWithSubjectPredicateObject(null, null, object, isObjectLiteral, language, graphName);
+    }
+
     //sp
     public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate, String... graphName) throws Exception {
         return getTriplesWithSubjectPredicate(subject, predicate.getURI(), predicate instanceof DatatypeProperty, graphName);

@@ -3,6 +3,7 @@ package licef.tsapi;
 import com.hp.hpl.jena.graph.Node;
 import com.hp.hpl.jena.graph.NodeFactory;
 import com.hp.hpl.jena.graph.Node_Literal;
+import com.hp.hpl.jena.ontology.DatatypeProperty;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.reasoner.Reasoner;
@@ -314,25 +315,25 @@ public class TripleStore {
 
     //p
     public Triple[] getTriplesWithPredicate(Property predicate, String... graphName) throws Exception {
-        return getTriplesWithPredicate(predicate.getURI(), graphName);
+        return getTriplesWithPredicate(predicate.getURI(), predicate instanceof DatatypeProperty, graphName);
     }
 
-    public Triple[] getTriplesWithPredicate(String predicate, String... graphName) throws Exception {
-        return getTriplesWithSubjectPredicateObject(null, predicate, null, false, null, graphName);
+    public Triple[] getTriplesWithPredicate(String predicate, boolean isObjectLiteral, String... graphName) throws Exception {
+        return getTriplesWithSubjectPredicateObject(null, predicate, null, isObjectLiteral, null, graphName);
     }
 
     //sp
     public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate, String... graphName) throws Exception {
-        return getTriplesWithSubjectPredicate(subject, predicate.getURI(), graphName);
+        return getTriplesWithSubjectPredicate(subject, predicate.getURI(), predicate instanceof DatatypeProperty, graphName);
     }
 
-    public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate, String... graphName) throws Exception {
-        return getTriplesWithSubjectPredicateObject(subject, predicate, null, false, null, graphName);
+    public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate, boolean isObjectLiteral, String... graphName) throws Exception {
+        return getTriplesWithSubjectPredicateObject(subject, predicate, null, isObjectLiteral, null, graphName);
     }
 
     //po
-    public Triple[] getTriplesWithPredicateObject(Property predicate, String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
-        return getTriplesWithPredicateObject(predicate.getURI(), object, isObjectLiteral, language, graphName);
+    public Triple[] getTriplesWithPredicateObject(Property predicate, String object, String language, String... graphName) throws Exception {
+        return getTriplesWithPredicateObject(predicate.getURI(), object, predicate instanceof DatatypeProperty, language, graphName);
     }
 
     public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
@@ -854,13 +855,16 @@ public class TripleStore {
      * @return Array of 2 Strings: the first is the best literal, the second is its language.
      */
 
-    public String[] getBestLocalizedLiteralObject(String uri, Property predicate, String lang, String... graphName) throws Exception {
+    public String[] getBestLocalizedLiteralObject(String uri, DatatypeProperty predicate, String lang, String... graphName) throws Exception {
         return getBestLocalizedLiteralObject(uri, predicate.getURI(), lang, graphName);
     }
 
+    /**
+     * note: predicate must refer a datatype property URI!!
+     */
     public String[] getBestLocalizedLiteralObject(String uri, String predicate, String lang, String... graphName) throws Exception {
         lang = LangUtil.convertLangToISO2(lang);
-        Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate, graphName);
+        Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate, true, graphName);
         if (lang == null)
             lang = "###"; //to force unlocalized choice
         String[] res = null;

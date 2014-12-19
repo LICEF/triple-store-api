@@ -1,9 +1,9 @@
 package licef.tsapi.model;
 
 import com.hp.hpl.jena.ontology.ObjectProperty;
+import com.hp.hpl.jena.ontology.OntClass;
 import com.hp.hpl.jena.rdf.model.Property;
 import licef.LangUtil;
-import licef.tsapi.util.Util;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,6 +16,10 @@ public class Triple {
 
     public Triple(String subject, String predicate, String object, boolean isObjectLiteral) {
         this(subject, predicate, object, isObjectLiteral, null);
+    }
+
+    public Triple(String subject, Property predicate, OntClass object) {
+        this(subject, predicate.getURI(), object.getURI(), false, null);
     }
 
     public Triple(String subject, Property predicate, String object) {

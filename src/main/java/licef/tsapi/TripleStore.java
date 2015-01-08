@@ -876,10 +876,11 @@ public class TripleStore {
      * 2 - With first similar language (ex: fr-CA for a fr request)
      * 3 - unlocalized literal when no matching language
      * 4 - default case : first found result
+     * note: predicate must refer a datatype property URI!!
      * @return Array of 2 Strings: the first is the best literal, the second is its language.
      */
 
-    public String[] getBestLocalizedLiteralObject(String uri, DatatypeProperty predicate, String lang, String... graphName) throws Exception {
+    public String[] getBestLocalizedLiteralObject(String uri, Property predicate, String lang, String... graphName) throws Exception {
         return getBestLocalizedLiteralObject(uri, predicate.getURI(), lang, graphName);
     }
 

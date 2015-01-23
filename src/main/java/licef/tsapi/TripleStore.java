@@ -697,6 +697,24 @@ public class TripleStore {
                                   graphName);
     }
 
+    /*********************/
+    /* Removing resource */
+    /*********************/
+
+    public void removeResource(String uri, String... graphName) throws Exception {
+        ArrayList<Triple> triplesToRemove = new ArrayList<Triple>();
+        triplesToRemove.addAll(Arrays.asList( getTriplesWithObject(uri, false, null, graphName) ));
+        triplesToRemove.addAll(Arrays.asList( getTriplesWithSubject(uri, graphName) ));
+        removeTriples(triplesToRemove, graphName);
+    }
+
+    public void removeResourceWithTextIndex(String uri, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
+        ArrayList<Triple> triplesToRemove = new ArrayList<Triple>();
+        triplesToRemove.addAll(Arrays.asList( getTriplesWithObject(uri, false, null, graphName) ));
+        triplesToRemove.addAll(Arrays.asList( getTriplesWithSubject(uri, graphName) ));
+        removeTriplesWithTextIndex(triplesToRemove, indexedPredicates, langInfo, indexName, graphName);
+    }
+
 
     /**************************/
     /* SPARQL 1.1 Query forms */

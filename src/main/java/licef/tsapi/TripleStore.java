@@ -3,7 +3,7 @@ package licef.tsapi;
 import com.hp.hpl.jena.graph.Node;
 import com.hp.hpl.jena.graph.NodeFactory;
 import com.hp.hpl.jena.graph.Node_Literal;
-import com.hp.hpl.jena.ontology.DatatypeProperty;
+import com.hp.hpl.jena.ontology.ObjectProperty;
 import com.hp.hpl.jena.query.*;
 import com.hp.hpl.jena.rdf.model.*;
 import com.hp.hpl.jena.reasoner.Reasoner;
@@ -334,7 +334,7 @@ public class TripleStore {
 
     //p
     public Triple[] getTriplesWithPredicate(Property predicate, String... graphName) throws Exception {
-        return getTriplesWithPredicate(predicate.getURI(), predicate instanceof DatatypeProperty, graphName);
+        return getTriplesWithPredicate(predicate.getURI(), !(predicate instanceof ObjectProperty), graphName);
     }
 
     public Triple[] getTriplesWithPredicate(String predicate, boolean isObjectLiteral, String... graphName) throws Exception {
@@ -348,7 +348,7 @@ public class TripleStore {
 
     //sp
     public Triple[] getTriplesWithSubjectPredicate(String subject, Property predicate, String... graphName) throws Exception {
-        return getTriplesWithSubjectPredicate(subject, predicate.getURI(), predicate instanceof DatatypeProperty, graphName);
+        return getTriplesWithSubjectPredicate(subject, predicate.getURI(), !(predicate instanceof ObjectProperty), graphName);
     }
 
     public Triple[] getTriplesWithSubjectPredicate(String subject, String predicate, boolean isObjectLiteral, String... graphName) throws Exception {
@@ -357,7 +357,7 @@ public class TripleStore {
 
     //po
     public Triple[] getTriplesWithPredicateObject(Property predicate, String object, String language, String... graphName) throws Exception {
-        return getTriplesWithPredicateObject(predicate.getURI(), object, predicate instanceof DatatypeProperty, language, graphName);
+        return getTriplesWithPredicateObject(predicate.getURI(), object, !(predicate instanceof ObjectProperty), language, graphName);
     }
 
     public Triple[] getTriplesWithPredicateObject(String predicate, String object, boolean isObjectLiteral, String language, String... graphName) throws Exception {
@@ -573,9 +573,9 @@ public class TripleStore {
             dataset.addNamedModel(getUri(_graphName), model);
     }
 
-    /********************/
-    /* Removing triples */
-    /********************/
+    /*******************/
+    /* Removing graphs */
+    /*******************/
 
     public void clear(String... graphName) throws Exception {
         clear(getDataset(), graphName);
@@ -609,6 +609,11 @@ public class TripleStore {
             dataset.removeNamedModel(getUri(_graphName));
     }
 
+
+    /********************/
+    /* Removing triples */
+    /********************/
+
     public void removeTriple(Triple triple, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
@@ -617,6 +622,20 @@ public class TripleStore {
 
     public void removeTriples(List<Triple> triples, String... graphName) throws Exception {
         removeTriples(getDataset(), triples, graphName);
+    }
+
+    public void removeTriplesWithPredicate(Property predicate, String... graphName) throws Exception {
+        Triple[] triples = getTriplesWithPredicate(predicate, graphName);
+        removeTriples(Arrays.asList(triples), graphName);
+    }
+
+    public void removeTriplesWithPredicateWithTextIndex(Property predicate, Property[] indexedPredicates, Object langInfo, String indexName, String... graphName) throws Exception {
+        if (predicate instanceof ObjectProperty)
+            removeTriplesWithPredicate(predicate, graphName);
+        else {
+            Triple[] triples = getTriplesWithPredicate(predicate, graphName);
+            removeTriplesWithTextIndex(Arrays.asList(triples), indexedPredicates, langInfo, indexName, graphName);
+        }
     }
 
     /* with Lucene index */
@@ -690,11 +709,9 @@ public class TripleStore {
                                                 Property[] indexedPredicates, Object langInfo, String indexName,
                                                 String... graphName) throws Exception {
         removeTripleWithTextIndex(new Triple(subject, predicate, previousObject, previousLanguage),
-                                  indexedPredicates, langInfo, indexName,
-                                  graphName);
+                                  indexedPredicates, langInfo, indexName, graphName);
         insertTripleWithTextIndex(new Triple(subject, predicate, newObject, newLanguage),
-                                  indexedPredicates, langInfo, indexName,
-                                  graphName);
+                                  indexedPredicates, langInfo, indexName, graphName);
     }
 
     /*********************/

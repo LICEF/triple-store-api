@@ -667,6 +667,35 @@ public class TripleStore {
         }
     }
 
+    /**************************/
+    /* Updating object triple */
+    /**************************/
+    public void updateObjectTriple(String subject, Property predicate,
+                                   String previousObject, String newObject,
+                                   String... graphName) throws Exception {
+        updateObjectTriple(subject, predicate, previousObject, null, newObject, null, graphName);
+    }
+
+    public void updateObjectTriple(String subject, Property predicate,
+                                   String previousObject, String previousLanguage,
+                                   String newObject, String newLanguage,
+                                   String... graphName) throws Exception {
+        removeTriple(new Triple(subject, predicate, previousObject, previousLanguage), graphName);
+        insertTriple(new Triple(subject, predicate, newObject, newLanguage), graphName);
+    }
+
+    public void updateObjectTripleWithTextIndex(String subject, Property predicate,
+                                                String previousObject, String previousLanguage,
+                                                String newObject, String newLanguage,
+                                                Property[] indexedPredicates, Object langInfo, String indexName,
+                                                String... graphName) throws Exception {
+        removeTripleWithTextIndex(new Triple(subject, predicate, previousObject, previousLanguage),
+                                  indexedPredicates, langInfo, indexName,
+                                  graphName);
+        insertTripleWithTextIndex(new Triple(subject, predicate, newObject, newLanguage),
+                                  indexedPredicates, langInfo, indexName,
+                                  graphName);
+    }
 
 
     /**************************/

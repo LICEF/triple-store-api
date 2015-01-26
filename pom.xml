@@ -4,7 +4,7 @@
     <artifactId>licef-tsapi</artifactId>
     <packaging>jar</packaging>
     <name>Licef triple store API</name>
-    <version>0.2.9</version>
+    <version>0.2.8</version>
 
     <build>
         <resources>
@@ -88,7 +88,7 @@
         <dependency>
             <groupId>licef</groupId>
             <artifactId>licef-utils</artifactId>
-            <version>0.12.2</version>
+            <version>0.12.1</version>
         </dependency>
         <dependency>
             <groupId>org.apache.jena</groupId>

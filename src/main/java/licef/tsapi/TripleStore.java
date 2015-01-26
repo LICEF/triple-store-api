@@ -943,17 +943,9 @@ public class TripleStore {
      * note: predicate must refer a datatype property URI!!
      * @return Array of 2 Strings: the first is the best literal, the second is its language.
      */
-
     public String[] getBestLocalizedLiteralObject(String uri, Property predicate, String lang, String... graphName) throws Exception {
-        return getBestLocalizedLiteralObject(uri, predicate.getURI(), lang, graphName);
-    }
-
-    /**
-     * note: predicate must refer a datatype property URI!!
-     */
-    public String[] getBestLocalizedLiteralObject(String uri, String predicate, String lang, String... graphName) throws Exception {
         lang = LangUtil.convertLangToISO2(lang);
-        Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate, true, graphName);
+        Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate.getURI(), true, graphName);
         if (lang == null)
             lang = "###"; //to force unlocalized choice
         String[] res = null;

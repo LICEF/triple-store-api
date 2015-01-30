@@ -7,6 +7,7 @@ import licef.tsapi.model.NodeValue;
 import licef.tsapi.model.Triple;
 import licef.tsapi.TripleStore;
 import licef.tsapi.model.Tuple;
+import licef.tsapi.textIndex.IndexConfig;
 import licef.tsapi.util.Util;
 import licef.tsapi.vocabulary.DCTERMS;
 import licef.tsapi.vocabulary.FOAF;
@@ -214,7 +215,7 @@ public class Test {
 //            Invoker inv = new Invoker(null, "Test", "transactionCall", new Object[]{});
 //            ts.transactionalCall(inv, TripleStore.WRITE_MODE);
 
-            Invoker inv = new Invoker(null, "Test", "transactionCall2", new Object[]{});
+            Invoker inv = new Invoker(null, "Test", "transactionCall3", new Object[]{});
 //            ts.transactionalCall(inv);
             ts.transactionalCall(inv, TripleStore.WRITE_MODE);
 
@@ -329,17 +330,18 @@ public class Test {
 //        int i = 0;
 //        int j =  5/i;
 
-        ts.insertTriplesWithTextIndex(l1, indexPredicatesMain, languages, null);
+        IndexConfig cfg = new IndexConfig(indexPredicatesMain, languages, null);
+        ts.insertTriples_textIndex(l1, cfg);
 
-        ts.insertTriplesWithTextIndex(l2, indexPredicatesMain, languages, null);
+        ts.insertTriples_textIndex(l2, cfg);
 //        int i = 0;
 //        i =  5/i;
 
-        ts.insertTriplesWithTextIndex(l3, indexPredicatesMain, languages, null);
+        ts.insertTriples_textIndex(l3, cfg);
 
-        ts.removeTriplesWithTextIndex(l1, indexPredicatesMain, languages, null);
-        ts.removeTriplesWithTextIndex(l2, indexPredicatesMain, languages, null);
-        ts.removeTriplesWithTextIndex(l3, indexPredicatesMain, languages, null);
+        ts.insertTriples_textIndex(l1, cfg);
+        ts.insertTriples_textIndex(l2, cfg);
+        ts.insertTriples_textIndex(l3, cfg);
 
 
 //        ts.insertTriplesWithTextIndexing(l1, indexPredicatesMain, "en", null);
@@ -354,8 +356,10 @@ public class Test {
 //        int j =  5/i;
 //        ts.interruptTransaction();
 
+
+        IndexConfig cfg2 = new IndexConfig(new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
 //        Tuple[] ttu = ts.sparqlSelect(q);
-        Tuple[] ttu = ts.sparqlSelectWithTextIndex(q, new Property[]{SKOS.prefLabel}, new String[]{"fr", "en"}, null);
+        Tuple[] ttu = ts.sparqlSelect_textIndex(q, cfg2);
         System.out.println("results: = " );
         for (Tuple ssu : ttu) {
             System.out.println("n = " + ssu);
@@ -387,13 +391,42 @@ public class Test {
 
 //        Tuple[] ttu = ts.sparqlSelect(q);
 
-        Tuple[] ttu = ts.sparqlSelectWithTextIndex(q, indexPredicatesVoc, languages, null);
+        IndexConfig cfg = new IndexConfig(indexPredicatesVoc, languages, null);
+        Tuple[] ttu = ts.sparqlSelect_textIndex(q, cfg);
         System.out.println("results: = " );
         for (Tuple ssu : ttu) {
             System.out.println("n = " + ssu);
         }
 
 
+
+    }
+
+
+    public static void transactionCall3() throws Exception {
+        System.out.println("\n\nTRANSAC 3");
+        ArrayList<Triple> l1 = new ArrayList<Triple>();
+        Triple t0 = new Triple("http://res1", "http://pred1", "http://res2", false);
+        Triple t1 = new Triple("http://res10", "http://pred1", "http://res20", false);
+        Triple t2 = new Triple("http://res100", "http://pred1", "http://res200", false);
+        l1.add(t0);
+        l1.add(t1);
+        l1.add(t2);
+
+//        ts.insertTriples(l1);
+//
+        ts.removeTriple(t1);
+        ts.removeTriple(t2);
+
+        Triple[] res = ts.getAllTriples();
+        for (Triple t : res) {
+            System.out.println("t = " + t);
+        }
+
+        Tuple[] tuples = ts.sparqlSelect("select * where { ?s ?p ?o }");
+        for (Tuple t : tuples) {
+            System.out.println("tuple = " + t);
+        }
 
     }
 }

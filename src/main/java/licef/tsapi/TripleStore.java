@@ -442,11 +442,11 @@ public class TripleStore {
 
     /* with Lucene index */
 
-    public void loadContentWithTextIndex(InputStream is, int format, String... graphName) throws Exception {
-        loadContentWithTextIndex(is, defaultIndexCfg, format, graphName);
+    public void loadContent_textIndex(InputStream is, int format, String... graphName) throws Exception {
+        loadContent_textIndex(is, defaultIndexCfg, format, graphName);
     }
 
-    public void loadContentWithTextIndex(InputStream is, IndexConfig indexCfg, int format, String... graphName) throws Exception {
+    public void loadContent_textIndex(InputStream is, IndexConfig indexCfg, int format, String... graphName) throws Exception {
         Dataset dataset = getIndexDataset(indexCfg);
         loadContent(dataset, is, "", format, graphName);
     }
@@ -531,21 +531,21 @@ public class TripleStore {
 
     /* with Lucene index */
 
-    public void insertTripleWithTextIndex(Triple triple, String... graphName) throws Exception {
-        insertTripleWithTextIndex(triple, defaultIndexCfg, graphName);
+    public void insertTriple_textIndex(Triple triple, String... graphName) throws Exception {
+        insertTriple_textIndex(triple, defaultIndexCfg, graphName);
     }
 
-    public void insertTripleWithTextIndex(Triple triple, IndexConfig indexCfg, String... graphName) throws Exception {
+    public void insertTriple_textIndex(Triple triple, IndexConfig indexCfg, String... graphName) throws Exception {
         ArrayList<Triple> triples = new ArrayList<Triple>();
         triples.add(triple);
-        insertTriplesWithTextIndex(triples, indexCfg, graphName);
+        insertTriples_textIndex(triples, indexCfg, graphName);
     }
 
-    public void insertTriplesWithTextIndex(List<Triple> triples, String... graphName) throws Exception {
-        insertTriplesWithTextIndex(triples, defaultIndexCfg, graphName);
+    public void insertTriples_textIndex(List<Triple> triples, String... graphName) throws Exception {
+        insertTriples_textIndex(triples, defaultIndexCfg, graphName);
     }
 
-    public void insertTriplesWithTextIndex(List<Triple> triples, IndexConfig index, String... graphName) throws Exception {
+    public void insertTriples_textIndex(List<Triple> triples, IndexConfig index, String... graphName) throws Exception {
         Dataset ids = getIndexDataset(index);
         insertTriples(ids, triples, graphName);
     }
@@ -589,11 +589,11 @@ public class TripleStore {
 
     /* with Lucene index */
 
-    public void clearWithTextIndex(String... graphName) throws Exception {
-        clearWithTextIndex(defaultIndexCfg, graphName);
+    public void clear_textIndex(String... graphName) throws Exception {
+        clear_textIndex(defaultIndexCfg, graphName);
     }
 
-    public void clearWithTextIndex(IndexConfig indexCfg, String... graphName) throws Exception {
+    public void clear_textIndex(IndexConfig indexCfg, String... graphName) throws Exception {
         Dataset dataset = getIndexDataset(indexCfg);
         clear(dataset, graphName);
     }
@@ -625,6 +625,11 @@ public class TripleStore {
         removeTriples(getDataset(), triples, graphName);
     }
 
+    public void removeTriplesWithSubject(String uri, String... graphName) throws Exception {
+        Triple[] triples = getTriplesWithSubject(uri, graphName);
+        removeTriples(Arrays.asList(triples), graphName);
+    }
+
     public void removeTriplesWithPredicate(Property predicate, String... graphName) throws Exception {
         Triple[] triples = getTriplesWithPredicate(predicate, graphName);
         removeTriples(Arrays.asList(triples), graphName);
@@ -632,36 +637,45 @@ public class TripleStore {
 
     /* with Lucene index */
 
-    public void removeTriplesWithPredicateWithTextIndex(Property predicate, String... graphName) throws Exception {
-        removeTriplesWithPredicateWithTextIndex(predicate, defaultIndexCfg, graphName);
+    public void removeTriple_textIndex(Triple triple, String... graphName) throws Exception {
+        removeTriple_textIndex(triple, defaultIndexCfg, graphName);
     }
 
-    public void removeTriplesWithPredicateWithTextIndex(Property predicate, IndexConfig indexCfg, String... graphName) throws Exception {
+    public void removeTriple_textIndex(Triple triple, IndexConfig indexCfg, String... graphName) throws Exception {
+        ArrayList<Triple> triples = new ArrayList<Triple>();
+        triples.add(triple);
+        removeTriples_textIndex(triples, indexCfg, graphName);
+    }
+
+    public void removeTriples_textIndex(List<Triple> triples, String... graphName) throws Exception {
+        removeTriples_textIndex(triples, defaultIndexCfg, graphName);
+    }
+
+    public void removeTriples_textIndex(List<Triple> triples, IndexConfig indexCfg, String... graphName) throws Exception {
+        Dataset ids = getIndexDataset(indexCfg);
+        removeTriples(ids, triples, graphName);
+    }
+
+    public void removeTriplesWithSubject_textIndex(String uri, String... graphName) throws Exception {
+        removeTriplesWithSubject_textIndex(uri, defaultIndexCfg, graphName);
+    }
+
+    public void removeTriplesWithSubject_textIndex(String uri, IndexConfig indexCfg, String... graphName) throws Exception {
+        Triple[] triples = getTriplesWithSubject(uri, graphName);
+        removeTriples_textIndex(Arrays.asList(triples), graphName);
+    }
+
+    public void removeTriplesWithPredicate_textIndex(Property predicate, String... graphName) throws Exception {
+        removeTriplesWithPredicate_textIndex(predicate, defaultIndexCfg, graphName);
+    }
+
+    public void removeTriplesWithPredicate_textIndex(Property predicate, IndexConfig indexCfg, String... graphName) throws Exception {
         if (predicate instanceof ObjectProperty)
             removeTriplesWithPredicate(predicate, graphName);
         else {
             Triple[] triples = getTriplesWithPredicate(predicate, graphName);
-            removeTriplesWithTextIndex(Arrays.asList(triples), indexCfg, graphName);
+            removeTriples_textIndex(Arrays.asList(triples), indexCfg, graphName);
         }
-    }
-
-    public void removeTripleWithTextIndex(Triple triple, String... graphName) throws Exception {
-        removeTripleWithTextIndex(triple, defaultIndexCfg, graphName);
-    }
-
-    public void removeTripleWithTextIndex(Triple triple, IndexConfig indexCfg, String... graphName) throws Exception {
-        ArrayList<Triple> triples = new ArrayList<Triple>();
-        triples.add(triple);
-        removeTriplesWithTextIndex(triples, indexCfg, graphName);
-    }
-
-    public void removeTriplesWithTextIndex(List<Triple> triples, String... graphName) throws Exception {
-        removeTriplesWithTextIndex(triples, defaultIndexCfg, graphName);
-    }
-
-    public void removeTriplesWithTextIndex(List<Triple> triples, IndexConfig indexCfg, String... graphName) throws Exception {
-        Dataset ids = getIndexDataset(indexCfg);
-        removeTriples(ids, triples, graphName);
     }
 
     // Effective remove
@@ -690,9 +704,10 @@ public class TripleStore {
         }
     }
 
-    /**************************/
-    /* Updating object triple */
-    /**************************/
+    /*******************/
+    /* Updating triple */
+    /*******************/
+
     public void updateObjectTriple(String subject, Property predicate,
                                    String previousObject, String newObject,
                                    String... graphName) throws Exception {
@@ -707,27 +722,62 @@ public class TripleStore {
         insertTriple(new Triple(subject, predicate, newObject, newLanguage), graphName);
     }
 
-    public void updateObjectTripleWithTextIndex(String subject, Property predicate,
+    public void updateObjectTriple_textIndex(String subject, Property predicate,
                                                 String previousObject, String previousLanguage,
                                                 String newObject, String newLanguage,
                                                 String... graphName) throws Exception {
-        updateObjectTripleWithTextIndex(subject, predicate, previousObject, previousLanguage,
+        updateObjectTriple_textIndex(subject, predicate, previousObject, previousLanguage,
                                         newObject, newLanguage, defaultIndexCfg, graphName);
     }
 
-    public void updateObjectTripleWithTextIndex(String subject, Property predicate,
+    public void updateObjectTriple_textIndex(String subject, Property predicate,
                                                 String previousObject, String previousLanguage,
                                                 String newObject, String newLanguage,
                                                 IndexConfig indexCfg, String... graphName) throws Exception {
-        removeTripleWithTextIndex(new Triple(subject, predicate, previousObject, previousLanguage),
+        removeTriple_textIndex(new Triple(subject, predicate, previousObject, previousLanguage),
                                   indexCfg, graphName);
-        insertTripleWithTextIndex(new Triple(subject, predicate, newObject, newLanguage),
+        insertTriple_textIndex(new Triple(subject, predicate, newObject, newLanguage),
                                   indexCfg, graphName);
     }
 
-    /*********************/
-    /* Removing resource */
-    /*********************/
+    /*************************/
+    /* Resource manipulation */
+    /*************************/
+
+    public void substituteResourceUri(String uri, String newUri, String... graphName) throws Exception {
+        //outgoing links
+        Triple[] triples = getTriplesWithSubject(uri, graphName);
+        for (Triple triple : triples)
+            triple.setSubject(newUri);
+        insertTriples(Arrays.asList(triples), graphName);
+        //incoming links
+        triples = getTriplesWithObject(uri, false, null, graphName);
+        for (Triple triple : triples)
+            triple.setObject(newUri);
+        insertTriples(Arrays.asList(triples), graphName);
+
+        //removing
+        removeResource(uri, graphName);
+    }
+
+    public void substituteResourceUri_textIndex(String uri, String newUri, String... graphName) throws Exception {
+        substituteResourceUri_textIndex(uri, newUri, defaultIndexCfg, graphName);
+    }
+
+    public void substituteResourceUri_textIndex(String uri, String newUri, IndexConfig indexCfg, String... graphName) throws Exception {
+        //outgoing links
+        Triple[] triples = getTriplesWithSubject(uri, graphName);
+        for (Triple triple : triples)
+            triple.setSubject(newUri);
+        insertTriples_textIndex(Arrays.asList(triples), indexCfg, graphName);
+        //incoming links
+        triples = getTriplesWithObject(uri, false, null, graphName);
+        for (Triple triple : triples)
+            triple.setObject(newUri);
+        insertTriples(Arrays.asList(triples), graphName);
+        //removing
+        removeResource(uri, graphName);
+    }
 
     public void removeResource(String uri, String... graphName) throws Exception {
         ArrayList<Triple> triplesToRemove = new ArrayList<Triple>();
@@ -736,15 +786,15 @@ public class TripleStore {
         removeTriples(triplesToRemove, graphName);
     }
 
-    public void removeResourceWithTextIndex(String uri, String... graphName) throws Exception {
-        removeResourceWithTextIndex(uri, defaultIndexCfg, graphName);
+    public void removeResource_textIndex(String uri, String... graphName) throws Exception {
+        removeResource_textIndex(uri, defaultIndexCfg, graphName);
     }
 
-    public void removeResourceWithTextIndex(String uri, IndexConfig indexCfg, String... graphName) throws Exception {
+    public void removeResource_textIndex(String uri, IndexConfig indexCfg, String... graphName) throws Exception {
         ArrayList<Triple> triplesToRemove = new ArrayList<Triple>();
         triplesToRemove.addAll(Arrays.asList( getTriplesWithObject(uri, false, null, graphName) ));
         triplesToRemove.addAll(Arrays.asList( getTriplesWithSubject(uri, graphName) ));
-        removeTriplesWithTextIndex(triplesToRemove, indexCfg, graphName);
+        removeTriples_textIndex(triplesToRemove, indexCfg, graphName);
     }
 
 
@@ -756,11 +806,11 @@ public class TripleStore {
         return sparqlSelect(getDataset(), queryString);
     }
 
-    public Tuple[] sparqlSelectWithTextIndex(String queryString) throws Exception {
-        return sparqlSelectWithTextIndex(queryString, defaultIndexCfg);
+    public Tuple[] sparqlSelect_textIndex(String queryString) throws Exception {
+        return sparqlSelect_textIndex(queryString, defaultIndexCfg);
     }
 
-    public Tuple[] sparqlSelectWithTextIndex(String queryString, IndexConfig indexCfg) throws Exception {
+    public Tuple[] sparqlSelect_textIndex(String queryString, IndexConfig indexCfg) throws Exception {
         Dataset dataset = getIndexDataset(indexCfg);
         return sparqlSelect(dataset, queryString);
     }
@@ -876,11 +926,11 @@ public class TripleStore {
         sparqlUpdate(getDataset(), updateString);
     }
 
-    public void sparqlUpdateWithTextIndex(String updateString) throws Exception {
-        sparqlUpdateWithTextIndex(updateString, defaultIndexCfg);
+    public void sparqlUpdate_textIndex(String updateString) throws Exception {
+        sparqlUpdate_textIndex(updateString, defaultIndexCfg);
     }
 
-    public void sparqlUpdateWithTextIndex(String updateString, IndexConfig indexCfg) throws Exception {
+    public void sparqlUpdate_textIndex(String updateString, IndexConfig indexCfg) throws Exception {
         Dataset dataset = getIndexDataset(indexCfg);
         sparqlUpdate(dataset, updateString);
     }

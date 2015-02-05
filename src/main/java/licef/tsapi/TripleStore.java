@@ -951,13 +951,16 @@ public class TripleStore {
     /* Inference */
     /*************/
 
-    public void doInference(String graphName, String graphSchema) throws Exception {
+    public void doInference(String graphSchema, String... graphName) throws Exception {
         Dataset ds = getDataset();
         if (!ds.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
+        String _graphName = (graphName != null && graphName.length != 0)?graphName[0]:null;
         Model modelSchema = ds.getNamedModel(getUri(graphSchema));
-        Model modelData = ds.getNamedModel(getUri(graphName));
+        Model modelData = (_graphName == null)?
+                ds.getDefaultModel():
+                ds.getNamedModel(getUri(_graphName));
         Reasoner reasoner = ReasonerRegistry.getOWLMicroReasoner();
         reasoner = reasoner.bindSchema(modelSchema);
         InfModel infModel = ModelFactory.createInfModel(reasoner, modelData);

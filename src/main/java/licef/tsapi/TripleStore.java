@@ -635,6 +635,11 @@ public class TripleStore {
         removeTriples(Arrays.asList(triples), graphName);
     }
 
+    public void removeTriplesWithSubjectPredicate(String uri, Property predicate, String... graphName) throws Exception {
+        Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate, graphName);
+        removeTriples(Arrays.asList(triples), graphName);
+    }
+
     /* with Lucene index */
 
     public void removeTriple_textIndex(Triple triple, String... graphName) throws Exception {
@@ -674,6 +679,19 @@ public class TripleStore {
             removeTriplesWithPredicate(predicate, graphName);
         else {
             Triple[] triples = getTriplesWithPredicate(predicate, graphName);
+            removeTriples_textIndex(Arrays.asList(triples), indexCfg, graphName);
+        }
+    }
+
+    public void removeTriplesWithSubjectPredicate_textIndex(String uri, Property predicate, String... graphName) throws Exception {
+        removeTriplesWithSubjectPredicate_textIndex(uri, predicate, defaultIndexCfg, graphName);
+    }
+
+    public void removeTriplesWithSubjectPredicate_textIndex(String uri, Property predicate, IndexConfig indexCfg, String... graphName) throws Exception {
+        if (predicate instanceof ObjectProperty)
+            removeTriplesWithSubjectPredicate(uri, predicate, graphName);
+        else {
+            Triple[] triples = getTriplesWithSubjectPredicate(uri, predicate, graphName);
             removeTriples_textIndex(Arrays.asList(triples), indexCfg, graphName);
         }
     }

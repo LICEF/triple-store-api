@@ -483,15 +483,32 @@ public class TripleStore {
     }
 
     /**
-     * Load a TriG format file
+     * Load a serialized dataset file (ex: TriG)
      * @param path source file path
+     * @param format TRIG constant integer
      * @param clearFirst if true, current TDB data are erased first,
      *                   else, new quad will be appended
      * @throws Exception
      */
+
     public void loadDataset(String path, int format, boolean clearFirst) throws Exception {
-        Dataset ds = getDataset();
-        if (!ds.isInTransaction())
+        loadDataset(getDataset(), path, format, clearFirst);
+    }
+
+    /* with Lucene index */
+
+    public void loadDataset_textIndex(String path, int format, boolean clearFirst) throws Exception {
+        loadDataset_textIndex(path, defaultIndexCfg, format, clearFirst);
+    }
+
+    public void loadDataset_textIndex(String path, IndexConfig indexCfg, int format, boolean clearFirst) throws Exception {
+        Dataset dataset = getIndexDataset(indexCfg);
+        loadDataset(dataset, path, format, clearFirst);
+    }
+
+    //Effective load
+    public void loadDataset(Dataset dataset, String path, int format, boolean clearFirst) throws Exception {
+        if (!dataset.isInTransaction())
             throw new Exception("Cannot perform action on triple store without transaction.");
 
         Dataset externalDS = Translator.loadDataset(path, format);
@@ -507,11 +524,11 @@ public class TripleStore {
         }
 
         //default graph
-        ds.getDefaultModel().add(externalDS.getDefaultModel());
+        dataset.getDefaultModel().add(externalDS.getDefaultModel());
         //named graphs
         for(Iterator it = externalDS.listNames(); it.hasNext();) {
             String name = (String)it.next();
-            ds.addNamedModel(name, externalDS.getNamedModel(name));
+            dataset.addNamedModel(name, externalDS.getNamedModel(name));
         }
     }
 
@@ -1088,6 +1105,7 @@ public class TripleStore {
         try {
             os = new FileOutputStream(outputFile);
             Translator.translate(getDataset(), format, os);
+            System.out.println("dump done ");
         } finally {
             if( os != null )
                 os.close();
